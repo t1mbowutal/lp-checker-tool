@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IFM-style Example Landingpage</title>
+  <meta name="description" content="Compact example landing page for BOFU conversions." />
+  <link rel="canonical" href="https://example.com/ifm-landing" />
+  <style>
+    :root{--accent:#ff6e00}
+    body{font-family:system-ui,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;margin:0}
+    header{padding:40px 24px;background:#111;color:#fff}
+    .container{max-width:980px;margin:0 auto}
+    h1{margin:0 0 8px}
+    .cta{display:inline-block;margin-top:8px;padding:12px 18px;background:var(--accent);color:#111;text-decoration:none;border-radius:10px;font-weight:700}
+    main{padding:24px}
+    section{margin:16px 0;padding:16px;border:1px solid #eee;border-radius:12px}
+    footer{padding:16px;color:#666}
+  </style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <h1>Measure, Control, Optimize</h1>
+    <p>Smart sensors for clean installs and faster commissioning.</p>
+    <a class="cta" href="#form">Request demo</a>
+  </div>
+</header>
+<main class="container">
+  <section>
+    <h2>Why this product</h2>
+    <ul>
+      <li>Fewer false positives</li>
+      <li>Plugs into existing PLCs</li>
+      <li>Global support</li>
+    </ul>
+  </section>
+  <section id="form">
+    <h2>Get in touch</h2>
+    <form>
+      <label>Work Email<br><input type="email" required></label><br>
+      <label>Company<br><input type="text" required></label><br>
+      <button type="submit">Request demo</button>
+    </form>
+    <p style="font-size:12px;color:#666;margin-top:8px">By submitting, you agree to be contacted. <a href="mailto:sales@example.com">Email</a> or <a href="tel:+492021234567">+49 202 1234567</a>.</p>
+  </section>
+</main>
+<footer class="container">© Tim Clausen 2025</footer>
+</body>
+</html>
