@@ -1,5 +1,4 @@
 
-// Old-look UI + improved scoring + checklist contains example link.
 const qs = s => document.querySelector(s);
 
 const checklistItems = [
@@ -47,7 +46,6 @@ function count(regex, str){ let c=0,m; while((m=regex.exec(str))!==null){ c++; i
 function analyze(html){
   const lower = html.toLowerCase();
 
-  // Content markers
   const h1 = (html.match(/<h1[^>]*>(.*?)<\/h1>/is)||[])[1]||"";
   const hasH1 = !!h1 && h1.replace(/<[^>]+>/g,"").trim().length>3;
 
@@ -71,7 +69,6 @@ function analyze(html){
   const visuals = /<img|<video|<picture/i.test(lower);
   const tracking = /(gtm-|google tag manager|gtag\(\'config|googletagmanager\.com|facebook\.com\/tr|linkedininsighttag|clarity|hotjar)/i.test(lower);
 
-  // Head/tech markers (may be missing if site blocks proxy)
   const title = (html.match(/<title[^>]*>(.*?)<\/title>/is)||[])[1]||"";
   const desc = extractMeta(html, "description");
   const canonical = extractMeta(html, "canonical", "rel") || "";
@@ -83,11 +80,8 @@ function analyze(html){
   const scriptCount = count(/<script\b/gi, lower);
   const hasAnyAssets = (imgCount+scriptCount)>0;
 
-  // Heuristic performance proxy
-  const fastPerception = hasAnyAssets ? (imgCount < 25 && scriptCount < 25) : true; // don't punish if content is hidden
+  const fastPerception = hasAnyAssets ? (imgCount < 25 && scriptCount < 25) : true;
 
-  // --- Scoring (sharpened & more robust) ---
-  // We down-weight technical if head/asset signals are likely missing.
   const techSignalStrength = [
     title?1:0, desc?1:0, viewport?1:0, canonical?1:0, hasAnyAssets?1:0
   ].reduce((a,b)=>a+b,0) / 5; // 0..1
@@ -114,16 +108,14 @@ function analyze(html){
     (title.length>=20 && title.length<=65 ?10: (title?6:4)) +
     (desc.length>=50 && desc.length<=160 ?10: (desc?6:4))
   );
-  // Down-weight if signals missing (avoid harsh penalties on blocked pages)
   technical = Math.round( technical * (0.6 + 0.4*techSignalStrength) );
 
   const purchaseScore = Math.min(100, purchase);
   const convincingScore = Math.min(100, convincing);
   const technicalScore = Math.min(100, technical);
 
-  // Overall weighting with safety floor if BOFU is strong
   let overall = Math.round( purchaseScore*0.45 + convincingScore*0.35 + technicalScore*0.20 );
-  if(purchaseScore>=60 && overall<40) overall = 40; // safety floor to avoid counterintuitive outputs
+  if(purchaseScore>=60 && overall<40) overall = 40;
 
   const checks = {
     h1: hasH1, cta: hasCTA, shortForm,
@@ -229,14 +221,25 @@ qs("#targetUrl").addEventListener("keydown", e=>{ if(e.key==="Enter") run(); });
 qs("#exportBtn").addEventListener("click", ()=>{
   const element = document.querySelector("#report");
   if(element.classList.contains("hidden")){ alert("Run an analysis first."); return; }
-  const opt = {
-    margin:       0.5,
-    filename:     'landingpage-checker-report.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2 },
-    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-  };
-  html2pdf().from(element).set(opt).save();
+  try{
+    if(typeof html2pdf === "undefined") throw new Error("html2pdf missing");
+    const opt = {
+      margin: 0.5,
+      filename: 'landingpage-checker-report.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().from(element).set(opt).save();
+  }catch(e){
+    console.warn("Export fallback via print()", e);
+    // Print fallback: show only the report area
+    const prev = document.body.innerHTML;
+    document.body.innerHTML = element.outerHTML;
+    window.print();
+    document.body.innerHTML = prev;
+    location.reload();
+  }
 });
 
 // Prefill via ?u=
