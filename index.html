@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Landingpage Checker</title>
-  <meta name="description" content="Analyze a landing page's BOFU readiness, key UX signals, and basic technical hygiene. Export a concise report as PDF." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -39,21 +38,20 @@
         <div id="summary" class="summary"></div>
         <div class="bars" id="bars"></div>
         <div class="grid" id="findings"></div>
-        <div class="tech" id="tech"></div>
       </div>
     </section>
 
     <footer class="footer">
       <div id="disclaimer">
         <strong>Disclaimer:</strong> This tool reviews <em>SEA landing pages</em> (single, purpose-built BOFU pages).
-        Scores are heuristic and depend on publicly readable HTML via a CORS proxy. They support—but never replace—manual evaluation,
-        proper analytics, and A/B testing.
+        Scores are heuristic and calibrated against leading brand examples (Apple, Tesla, BMW, Mercedes, Samsung, DMG Mori, Siemens, Bosch Rexroth, Sick, Balluff, Pepperl+Fuchs).
+        They support—but never replace—manual evaluation, proper analytics, and A/B testing.
       </div>
       <div>© Tim Clausen 2025</div>
     </footer>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

@@ -38,13 +38,9 @@ h2{margin:0 0 8px;font-size:20px}
 .block{border:1px solid var(--line);border-radius:10px;padding:10px;background:#0c1018}
 .block h3{margin:0 0 6px;font-size:16px}
 .list{margin:0;padding-left:18px;font-size:14px;color:#cfd6e5}
-.badge{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;margin-left:6px}
-.badge.ok{background:rgba(23,201,100,.12);color:#17c964;border:1px solid rgba(23,201,100,.24)}
-.badge.warn{background:rgba(245,165,36,.12);color:#f5a524;border:1px solid rgba(245,165,36,.24)}
-.badge.bad{background:rgba(243,18,96,.12);color:#f31260;border:1px solid rgba(243,18,96,.24)}
+.badge{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px}
 .link{color:#bcd3ff;text-decoration:underline}
 .footer{color:var(--muted);font-size:13px;margin:28px 0;display:flex;flex-direction:column;gap:8px}
-.tech{margin-top:12px;border-top:1px solid var(--line);padding-top:12px;color:#b7c2d3}
 small.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#9fb1cc}
 @media (max-width:720px){
   .grid,.checklist,.bars{grid-template-columns:1fr}
