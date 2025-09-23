@@ -1,66 +1,304 @@
-const $ = sel => document.querySelector(sel);
-const statusEl = $("#status");
-const resultsEl = $("#results");
-const scoreEl = $("#score");
 
-const kv = (label, value) =>
-  `<div class="card"><div class="kv"><b>${label}</b><span>${value}</span></div></div>`;
+// Minimal "old layout" behavior with robust analysis using r.jina.ai as read-only proxy.
+const qs = s => document.querySelector(s);
+const qsa = s => [...document.querySelectorAll(s)];
 
-async function analyze(url) {
-  statusEl.textContent = "Running…";
-  resultsEl.innerHTML = "";
-  scoreEl.textContent = "–";
-  try {
-    const res = await fetch("/api/analyze", {
-      method: "POST",
-      headers: {"content-type": "application/json"},
-      body: JSON.stringify({ url })
-    });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); }
-    catch {
-      throw new Error(`API returned non-JSON (${res.status}): ${text.slice(0,120)}…`);
-    }
+const checklistItems = [
+  "Clear H1 with value proposition",
+  "Primary CTA above the fold",
+  "Secondary CTA or phone/email",
+  "Short lead form (≤5 fields) or direct contact route",
+  "Trust elements (testimonials, reviews, clients)",
+  "Objection handling (FAQ, price clarity, delivery/installation)",
+  "Social proof (numbers, logos, ratings)",
+  "Benefit-led bullets (not only features)",
+  "Visuals that show the product/service in use",
+  "Tracking in place (GTM/GA/Meta/LI)",
+  "Canonical tag & indexability",
+  "Fast load perception (≤2.5s LCP proxy)*",
+  "Mobile friendliness (viewport meta present)",
+  "Privacy & legal links present",
+];
+(function initChecklist(){
+  const ul = qs('#checklist');
+  ul.innerHTML = checklistItems.map(t => `<li>□ ${t}</li>`).join("");
+})();
 
-    if (data.error && !data.status) {
-      statusEl.textContent = `Analyzer error: ${data.error} ${data.detail ? '— '+data.detail : ''}`;
-      return;
-    }
-
-    if (data.status >= 400) {
-      statusEl.textContent = `HTTP ${data.status} • Final URL: ${data.finalUrl} ` +
-        (data.botHint ? '• Possible bot protection' : '');
-    } else {
-      statusEl.textContent = `HTTP ${data.status} • Final URL: ${data.finalUrl}`;
-    }
-
-    const bullets = [
-      kv("Title", data.title || "—"),
-      kv("Meta Description", data.metaDesc || "—"),
-      kv("Canonical", data.canonical || "—"),
-      kv("H1 count", data.h1s?.length ?? 0),
-      kv("H2 count", data.h2s?.length ?? 0),
-      kv("CTAs detected", (data.ctas || []).join(", ") || "—"),
-      kv("Forms", data.forms ?? 0),
-      kv("Contact present", (data.hasTel || data.hasEmail) ? "Yes" : "No"),
-      kv("Hero (H1 + CTA above the fold)", data.hasHero ? "Likely" : "Unclear"),
-      kv("Images with alt", `${data.imgWithAlt}/${data.imgCount}`),
-      kv("Content-Type", data.contentType || "—")
-    ];
-    resultsEl.innerHTML = bullets.join("");
-    scoreEl.textContent = `Score: ${data.score ?? '—'}/100`;
-  } catch (e) {
-    statusEl.textContent = `Error: ${e.message}`;
+function normalizeUrl(u){
+  try{
+    const url = new URL(u);
+    return url.href;
+  }catch{
+    if(!u) return "";
+    return (u.startsWith("http")?u:`https://${u}`);
   }
 }
 
-document.getElementById("analyzeBtn").addEventListener("click", () => {
-  const url = document.getElementById("urlInput").value.trim();
-  if (!url) { statusEl.textContent = "Please paste a URL."; return; }
-  analyze(url);
+async function fetchHtmlViaProxy(target){
+  // Use r.jina.ai proxy which returns text/html with permissive CORS
+  const prox = target.startsWith("http://") ? target.replace("http://","") : target.replace("https://","");
+  const url = `https://r.jina.ai/http://${prox}`;
+  const res = await fetch(url, { headers: { "Accept": "text/html" } });
+  if(!res.ok) throw new Error(`Fetch failed (${res.status})`);
+  return await res.text();
+}
+
+function textBetween(s, start, end){
+  const i = s.indexOf(start);
+  if(i===-1) return "";
+  const j = s.indexOf(end, i+start.length);
+  if(j===-1) return s.slice(i+start.length);
+  return s.slice(i+start.length, j);
+}
+
+function scoreToBadge(score){
+  if(score>=80) return `<span class="badge ok">Strong</span>`;
+  if(score>=55) return `<span class="badge warn">Mixed</span>`;
+  return `<span class="badge bad">Weak</span>`;
+}
+
+function renderBar(id, label, score){
+  return `<div class="bar">
+    <div class="title"><span>${label}</span><span>${score}/100</span></div>
+    <div class="progress"><span style="width:${Math.max(1, score)}%"></span></div>
+  </div>`;
+}
+
+function extractMeta(html, name, attr="name"){
+  const re = new RegExp(`<meta[^>]+${attr}=["']?${name}["']?[^>]*>`, "i");
+  const m = html.match(re);
+  if(!m) return "";
+  const c = m[0].match(/content=["']([^"']*)["']/i);
+  return c?c[1]:"";
+}
+
+function has(html, regex){ return regex.test(html); }
+
+function count(regex, str){
+  let c=0, m;
+  while((m=regex.exec(str))!==null){ c++; if(c>500) break; }
+  return c;
+}
+
+function analyze(html){
+  const lower = html.toLowerCase();
+
+  const h1 = (html.match(/<h1[^>]*>(.*?)<\/h1>/is)||[])[1]||"";
+  const hasH1 = !!h1 && h1.replace(/<[^>]+>/g,"").trim().length>3;
+
+  const ctaRegex = /(get\s?(a\s)?quote|get started|start now|kontakt|angebot|anfrage|buy now|book (a )?demo|free trial|request|kontaktieren|termin|jetzt (kaufen|anfragen|bestellen|buchen))/i;
+  const ctas = count(new RegExp(ctaRegex, "gi"), lower);
+  const hasCTA = ctas>0 || /type=["']submit["']/.test(lower);
+
+  const formFields = count(/<input[^>]+(type|name)=/gi, lower);
+  const shortForm = formFields>0 && formFields<=6;
+
+  const hasPhone = /(tel:|\+?\d[\d\s\/()-]{6,})/i.test(lower);
+  const hasEmail = /mailto:|@/.test(lower);
+
+  const trust = /(testimonial|review|kundenstimme|bewertung|sterne|trustpilot|case study|referen[cz]|kunden)/i.test(lower);
+  const logos = /(logo|client|kunden|brand)/i.test(lower) || count(/<img[^>]+alt=["'][^"']*(logo|client|brand|kunde)/gi, lower)>0;
+  const socialProof = trust || logos || /★|⭐/.test(lower);
+
+  const objections = /(faq|fragen|widerspruch|garantie|preis|lieferung|installation|warranty|returns|shipping)/i.test(lower);
+
+  const benefits = /(benefit|vorteil|why|warum|value|nutzen)/i.test(lower) || count(/<li>.*?<\/li>/gis, lower)>4;
+
+  const visuals = /<img|<video|<picture/i.test(lower);
+
+  const tracking = /(gtm-|google tag manager|gtag\(\'config|googletagmanager\.com|facebook\.com\/tr|linkedininsighttag|clarity|hotjar)/i.test(lower);
+
+  const canonical = extractMeta(html, "canonical", "rel") || textBetween(lower, '<link rel="canonical" href="', '"');
+  const viewport = extractMeta(html, "viewport");
+  const robots = extractMeta(html, "robots");
+  const title = (html.match(/<title[^>]*>(.*?)<\/title>/is)||[])[1]||"";
+  const desc = extractMeta(html, "description");
+
+  const indexable = (robots? !/noindex|nofollow/i.test(robots):true);
+
+  // Simple perception proxy for "fast": rough asset count heuristic
+  const imgCount = count(/<img\b/gi, lower);
+  const scriptCount = count(/<script\b/gi, lower);
+  const fastPerception = imgCount < 25 && scriptCount < 25;
+
+  // Sub-scores
+  const purchase = (
+    (hasCTA?25:0) +
+    (shortForm?15:5) +
+    ((hasPhone||hasEmail)?10:0) +
+    (objections?10:0) +
+    (tracking?10:0)
+  );
+  const convincing = (
+    (hasH1?15:0) +
+    (benefits?10:0) +
+    (socialProof?15:0) +
+    (visuals?10:0) +
+    (objections?10:0)
+  );
+  const technical = (
+    (canonical?10:0) +
+    (viewport?10:0) +
+    (indexable?10:0) +
+    (fastPerception?10:0) +
+    (title.length>=20 && title.length<=65 ?10:5) +
+    (desc.length>=50 && desc.length<=160 ?10:5)
+  );
+  const awareness = Math.min(100, Math.round((convincing*0.6 + (socialProof?10:0))));
+
+  const purchaseScore = Math.min(100, purchase);
+  const convincingScore = Math.min(100, convincing);
+  const technicalScore = Math.min(100, technical);
+  const overall = Math.round( (purchaseScore*0.4)+(convincingScore*0.35)+(technicalScore*0.25) );
+
+  const checks = {
+    h1: hasH1,
+    cta: hasCTA,
+    shortForm,
+    phoneOrEmail: hasPhone||hasEmail,
+    trust: socialProof,
+    objections,
+    benefits,
+    visuals,
+    tracking,
+    canonical: !!canonical,
+    viewport: !!viewport,
+    indexable,
+    fastPerception,
+  };
+
+  return {
+    title, desc, canonical, robots, viewport,
+    scores: { overall, purchase: purchaseScore, convincing: convincingScore, technical: technicalScore, awareness },
+    checks,
+    counts: { imgCount, scriptCount, formFields, ctas }
+  };
+}
+
+function render(results, url){
+  qs("#reportEmpty").classList.add("hidden");
+  qs("#report").classList.remove("hidden");
+
+  const { scores, checks, title, desc, canonical, robots, viewport, counts } = results;
+
+  // Summary
+  const stance = scores.convincing >= 60 && scores.purchase >= 60 ? "Balanced, BOFU-ready"
+               : scores.purchase >= 60 ? "Purchase-focused, tighten proof"
+               : "Convincing-first, strengthen CTAs & forms";
+
+  qs("#summary").innerHTML = `
+    <div><strong>Executive summary:</strong> ${stance}. Overall score: <strong>${scores.overall}/100</strong> ${scoreToBadge(scores.overall)}</div>
+    <div class="muted">URL: <small class="mono">${url}</small></div>
+  `;
+
+  // Bars
+  qs("#bars").innerHTML =
+    renderBar("overall","Overall", scores.overall)+
+    renderBar("purchase","Purchase / BOFU", scores.purchase)+
+    renderBar("convincing","Convincing", scores.convincing)+
+    renderBar("technical","Technical SEO", scores.technical);
+
+  // Findings blocks
+  const good = [];
+  const improve = [];
+  const critical = [];
+
+  // Populate based on checks
+  if(checks.h1) good.push("Clear H1/value prop found.");
+  else critical.push("No clear H1/value proposition detected.");
+
+  if(checks.cta) good.push(`Primary CTA found (${counts.ctas}+ matches).`);
+  else critical.push("Primary CTA not detected above the fold.");
+
+  if(checks.shortForm) good.push(`Lead form length OK (${counts.formFields} fields).`);
+  else if(counts.formFields>0) improve.push(`Form seems long (${counts.formFields} fields) – aim ≤ 5.`);
+  else improve.push("Consider a short BOFU form or phone/email route.");
+
+  if(checks.phoneOrEmail) good.push("Secondary contact route present (phone/email).");
+  else improve.push("Add a visible secondary contact route (phone/email).");
+
+  if(checks.trust) good.push("Trust or social proof present.");
+  else improve.push("Add testimonials, client logos, or review snippets.");
+
+  if(checks.objections) good.push("Objection handling present (FAQ/price/installation).");
+  else improve.push("Add concise FAQ or address typical objections.");
+
+  if(checks.benefits) good.push("Benefit-led copy detected.");
+  else improve.push("Strengthen benefit-led bullets (not only features).");
+
+  if(checks.visuals) good.push("Relevant visuals present.");
+  else improve.push("Add product-in-context visuals or short demo video.");
+
+  if(checks.tracking) good.push("Tracking scripts detected (GTM/GA/Meta/LI).");
+  else critical.push("No tracking detected – set up GTM/GA & ad pixels.");
+
+  if(checks.canonical) good.push("Canonical tag found.");
+  else improve.push("Add a canonical tag.");
+
+  if(checks.viewport) good.push("Viewport meta present (mobile friendly).");
+  else critical.push("Missing viewport meta – mobile layout at risk.");
+
+  if(checks.indexable) good.push("Indexable (no noindex found).");
+  else improve.push("Robots suggest noindex/nofollow – confirm intention.");
+
+  if(checks.fastPerception) good.push("Perceived lightweight (assets under soft limits).");
+  else improve.push("Heavy asset footprint – compress & defer non-critical.");
+
+  const mk = (title, items)=>`<div class="block"><h3>${title}</h3><ul class="list">${items.map(i=>`<li>${i}</li>`).join("")}</ul></div>`;
+  qs("#findings").innerHTML = mk("What works", good) + mk("Improvements", improve) + mk("Critical", critical);
+
+  // Technical details
+  qs("#tech").innerHTML = `
+    <div class="block">
+      <h3>Technical details</h3>
+      <ul class="list">
+        <li><strong>Title:</strong> ${title?title:"—"}</li>
+        <li><strong>Meta description:</strong> ${desc?desc:"—"}</li>
+        <li><strong>Canonical:</strong> ${canonical?canonical:"—"}</li>
+        <li><strong>Robots:</strong> ${robots?robots:"—"}</li>
+        <li><strong>Viewport:</strong> ${viewport?viewport:"—"}</li>
+        <li><strong>Images:</strong> ${counts.imgCount}, <strong>Scripts:</strong> ${counts.scriptCount}</li>
+      </ul>
+    </div>
+  `;
+}
+
+async function run(){
+  const input = qs("#targetUrl");
+  const url = normalizeUrl(input.value.trim());
+  if(!url){ alert("Please paste a URL."); return; }
+  qs("#reportEmpty").classList.remove("hidden");
+  qs("#report").classList.add("hidden");
+  qs("#reportEmpty").textContent = "Analyzing…";
+  try{
+    const html = await fetchHtmlViaProxy(url);
+    const results = analyze(html);
+    render(results, url);
+  }catch(err){
+    console.error(err);
+    qs("#reportEmpty").textContent = "Error while fetching or analyzing this URL. Try another page or check CORS.";
+  }
+}
+
+qs("#analyzeBtn").addEventListener("click", run);
+qs("#targetUrl").addEventListener("keydown", e=>{ if(e.key==="Enter") run(); });
+
+qs("#exportBtn").addEventListener("click", ()=>{
+  const element = document.querySelector("#report");
+  if(element.classList.contains("hidden")){ alert("Run an analysis first."); return; }
+  const opt = {
+    margin:       0.5,
+    filename:     'landingpage-checker-report.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().from(element).set(opt).save();
 });
 
-document.getElementById("exportBtn").addEventListener("click", () => {
-  window.print();
-});
+// Example URL prefill for quicker testing
+try{
+  const params = new URLSearchParams(location.search);
+  const u = params.get("u");
+  if(u){ qs("#targetUrl").value = u; }
+}catch{}

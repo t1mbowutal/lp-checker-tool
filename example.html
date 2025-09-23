@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Example Landingpage</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body{background:#0f1115}
+    .hero{padding:40px 20px;text-align:center;background:#111827;color:#e5e7eb}
+    .hero h1{font-size:36px;margin:0 0 10px}
+    .hero p{color:#cbd5e1}
+    .wrap{max-width:900px;margin:0 auto;padding:20px}
+    .cta{display:inline-block;background:#ff6e00;color:black;border:1px solid #cf5b00;padding:12px 18px;border-radius:10px;text-decoration:none}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+    .seg{background:#161a22;border:1px solid #232838;border-radius:12px;padding:16px;color:#e5e7eb}
+    footer{color:#9aa3b2;text-align:center;padding:24px}
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Measure pressure precisely. Install in minutes.</h1>
+    <p>The PQ Cube pressure sensor for industrial automation.</p>
+    <p><a class="cta" href="#form">Get a quote</a></p>
+  </div>
+  <div class="wrap">
+    <div class="cols">
+      <div class="seg">
+        <h3>Why it matters</h3>
+        <ul>
+          <li>±0.5% accuracy across temperature range</li>
+          <li>IP67 housing, 24V industrial power</li>
+          <li>Plug-and-play with common PLCs</li>
+        </ul>
+      </div>
+      <div class="seg">
+        <h3>Trusted by</h3>
+        <p>OEMs across EU/NA. ★★★★☆ 4.7/5 average rating.</p>
+      </div>
+      <div class="seg">
+        <h3>FAQ</h3>
+        <p>Lead time 3–5 days. 5‑year warranty. Support via phone/email.</p>
+      </div>
+      <div class="seg" id="form">
+        <h3>Request a quote</h3>
+        <form>
+          <input class="input" placeholder="Name" required style="margin-bottom:8px;width:100%">
+          <input class="input" placeholder="Work Email" required style="margin-bottom:8px;width:100%">
+          <input class="input" placeholder="Company" style="margin-bottom:8px;width:100%">
+          <button class="btn primary" type="submit">Get quote</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <footer>© Tim Clausen 2025</footer>
+</body>
+</html>

@@ -1,59 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Landingpage Checker</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <meta name="description" content="Paste a URL, run the analysis, export the report. BOFU-focused, no fluff." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header>
+  <main class="container">
     <h1>Landingpage Checker</h1>
-    <p class="intro">
-      Paste a URL, run the analysis, and export the report. This tool gives you a quick, BOFU-focused health check of your landingpage – highlighting strengths and weaknesses for optimization.
-    </p>
-    <div class="input-bar">
-      <input id="urlInput" type="text" placeholder="https://example.com/landing">
-      <button id="analyzeBtn">Analyze</button>
-      <button id="exportBtn">Export as PDF</button>
-    </div>
-    <div class="example-link">
-      <a href="example.html" target="_blank">Open example landingpage</a>
-    </div>
-  </header>
+    <p class="sub">Paste a URL, run the analysis, export the report. BOFU-focused, no fluff.</p>
 
-  <main>
-    <section id="checklist">
-      <details>
+    <section class="card">
+      <label for="targetUrl" class="label">Target URL</label>
+      <div class="row">
+        <input id="targetUrl" type="url" placeholder="https://example.com/landing" class="input"/>
+        <button id="analyzeBtn" class="btn primary">Analyze</button>
+        <button id="exportBtn" class="btn">Export as PDF</button>
+      </div>
+
+      <details class="details">
         <summary>Landingpage Essentials (Checklist)</summary>
-        <ul>
-          <li>Clear H1 with value prop</li>
-          <li>Primary CTA above the fold (action language)</li>
-          <li>Support proof: logos, quotes, stats</li>
-          <li>Focused form (min fields), privacy hint near CTA</li>
-          <li>Sticky or repeated CTA</li>
-          <li>Trust (stars, guarantees, contact options)</li>
-          <li>SEO hygiene: title, meta desc, canonical, one H1</li>
+        <ul class="checklist" id="checklist">
+          <!-- Filled by JS for consistent order -->
         </ul>
       </details>
     </section>
 
-    <section id="report">
+    <section class="card">
       <h2>Report</h2>
-      <div id="reportContent">
-        <p>No analysis yet.</p>
+      <div id="reportEmpty">No analysis yet.</div>
+      <div id="report" class="report hidden">
+        <div id="summary" class="summary"></div>
+
+        <div class="bars" id="bars">
+          <!-- score bars render here -->
+        </div>
+
+        <div class="grid" id="findings">
+          <!-- findings render here -->
+        </div>
+
+        <div class="tech" id="tech">
+          <!-- technical findings -->
+        </div>
       </div>
     </section>
+
+    <section class="card">
+      <h2>Example Landingpage</h2>
+      <p>For inspiration, open the minimal example in a new tab.</p>
+      <p><a href="./example.html" target="_blank" class="link">Open example</a></p>
+    </section>
+
+    <footer class="footer">© Tim Clausen 2025</footer>
   </main>
 
-  <footer>
-    <p>© Tim Clausen 2025</p>
-    <p class="disclaimer">
-      Disclaimer: This is a surface-level automated analysis of landingpages. Results are for orientation only and do not replace expert review.
-    </p>
-    <p class="build-info">Build: 2025-09-23 06:14</p>
-  </footer>
-
-  <script src="script.js?v=3"></script>
+  <!-- html2pdf for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-YcsIP3sY1C9f0pQ6B0yRr4v7Z4eQ4tM9uDo4yH4bJ2jzv0k5nK1eG6Q0q4H1P6eZQzI6n9kqQkRz8uY0QK2zNw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
