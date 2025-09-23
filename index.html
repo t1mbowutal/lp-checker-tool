@@ -1,64 +1,58 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Landingpage Checker</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="container">
+  <header>
     <h1>Landingpage Checker</h1>
-    <p class="sub">Paste a URL, run the analysis, export the report. BOFU-focused, no fluff.</p>
+    <p class="intro">
+      Paste a URL, run the analysis, and export the report. This tool gives you a quick, BOFU-focused health check of your landingpage – highlighting strengths and weaknesses for optimization.
+    </p>
+    <div class="input-bar">
+      <input id="urlInput" type="text" placeholder="https://example.com/landing">
+      <button id="analyzeBtn">Analyze</button>
+      <button id="exportBtn">Export as PDF</button>
+    </div>
+    <div class="example-link">
+      <a href="example.html" target="_blank">Open example landingpage</a>
+    </div>
   </header>
 
-  <main class="container">
-    <section class="panel">
-      <label for="urlInput">Target URL</label>
-      <div class="row">
-        <input id="urlInput" type="url" placeholder="https://example.com/landing" />
-        <button id="analyzeBtn">Analyze</button>
-        <button id="exportBtn" class="ghost">Export as PDF</button>
-      </div>
-
-      <details class="dropdown">
+  <main>
+    <section id="checklist">
+      <details>
         <summary>Landingpage Essentials (Checklist)</summary>
         <ul>
           <li>Clear H1 with value prop</li>
           <li>Primary CTA above the fold (action language)</li>
-          <li>Supporting proof: logos, quotes, stats</li>
+          <li>Support proof: logos, quotes, stats</li>
           <li>Focused form (min fields), privacy hint near CTA</li>
           <li>Sticky or repeated CTA</li>
-          <li>Trust (certs, guarantees, contact options)</li>
+          <li>Trust (stars, guarantees, contact options)</li>
           <li>SEO hygiene: title, meta desc, canonical, one H1</li>
         </ul>
       </details>
     </section>
 
-    <section class="panel">
-      <h2>Examples</h2>
-      <p style="margin:0 0 8px">Open the minimal IFM-style example:</p>
-      <a class="link" href="./example/landing.html" target="_blank" rel="noopener">Open example</a>
-    </section>
-
-    <section id="report" class="panel">
+    <section id="report">
       <h2>Report</h2>
-      <p style="margin:6px 0 12px;color:#a3a7b0;font-size:14px">
-        <b>Disclaimer:</b> This checker is optimized for <b>SEA landing pages</b> (single-purpose, BOFU).
-        Scores are <i>not</i> meant for homepages, blogs, or multi-purpose product pages.
-        Some corporate sites block automated requests; if you see HTTP 4xx/5xx or “bot protection”,
-        try a different URL or whitelist the checker.
-      </p>
-      <div id="status">No analysis yet.</div>
-      <div id="results" class="grid"></div>
-      <div class="score-wrap"><span id="score">–</span></div>
+      <div id="reportContent">
+        <p>No analysis yet.</p>
+      </div>
     </section>
   </main>
 
   <footer>
-    <div class="container">© Tim Clausen 2025</div>
+    <p>© Tim Clausen 2025</p>
+    <p class="disclaimer">
+      Disclaimer: This is a surface-level automated analysis of landingpages. Results are for orientation only and do not replace expert review.
+    </p>
   </footer>
 
-  <script src="./app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

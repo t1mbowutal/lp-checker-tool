@@ -1,0 +1,97 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #121212;
+  color: #eee;
+  margin: 0;
+  padding: 0;
+}
+header, main, footer {
+  padding: 20px;
+}
+h1, h2 {
+  margin-bottom: 10px;
+}
+.intro {
+  margin-bottom: 15px;
+  color: #ccc;
+}
+.input-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+input[type="text"] {
+  flex: 1;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+button {
+  background-color: orange;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button#exportBtn {
+  background-color: #333;
+  color: white;
+}
+.example-link {
+  margin-top: 5px;
+}
+#report {
+  background: #1e1e1e;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+/* Tooltips */
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+/* Score bars */
+.score-bar {
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  background: orange;
+  width: 0;
+}
+/* Long URL handling */
+.url-truncate {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+footer {
+  margin-top: 40px;
+  font-size: 12px;
+  color: #999;
+}
+.disclaimer {
+  font-size: 11px;
+  color: #777;
+}
