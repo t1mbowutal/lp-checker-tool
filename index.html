@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bottom of Funnel (BoFu) Landingpage Checker</title>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script defer src="assets/js/app.js"></script>
+</head>
+<body class="app">
+  <main class="container">
+    <section class="hero card">
+      <h1>Bottom of Funnel (BoFu) Landingpage Checker</h1>
+      <p class="sub">Fokus: BOFU (CTA, Form/Kontakt, Pricing) + Convincing (Benefits, Trust, Objections, Visuals). Technical ist ein <b>Basic‑Hygiene‑Light‑Check</b>. Export als PDF möglich.</p>
+      <div class="row">
+        <input id="targetUrl" type="url" placeholder="https://example.com/your-landingpage" />
+        <button id="analyzeBtn" class="btn-primary">Analyze</button>
+        <button id="exportPdfBtn" class="btn-secondary">Export as PDF</button>
+      </div>
+      <details class="checklist">
+        <summary>Landingpage Essentials (Checklist)</summary>
+        <ul>
+          <li>Klarer Primary CTA above the fold</li>
+          <li>Kurzes Lead-Formular oder direkter Kontaktweg</li>
+          <li>Nutzenorientierter Text + belastbare Belege/Trust</li>
+          <li>Einwandbehandlung (FAQs, Garantien, Transparenz bei Pricing)</li>
+          <li>Mobile Basics + SEO-Basics: HTTPS, canonical, Title, Meta</li>
+        </ul>
+      </details>
+    </section>
+
+    <section id="report" class="card report" hidden>
+      <div id="summary"></div>
+
+      <div class="score-grid">
+        <div class="score-card">
+          <h4 class="has-tip" data-tip="Overall kombiniert BoFu (CTA, Form/Kontakt, Pricing), Convincing (Benefits, Trust, Objections, Visuals) und Technical Basics. 'Excellent' nur bei vollständiger Abdeckung.">Overall</h4>
+          <div class="bar"><span id="score-overall"></span></div><small id="qual-overall"></small>
+        </div>
+        <div class="score-card">
+          <h4 class="has-tip" data-tip="BoFu: klarer CTA, kurzer Lead-Pfad (Form/Kontakt), Pricing-Klarheit.">Purchase / BOFU</h4>
+          <div class="bar"><span id="score-bofu"></span></div><small id="qual-bofu"></small>
+        </div>
+        <div class="score-card">
+          <h4 class="has-tip" data-tip="Convincing: Nutzenargumente, Trust (Testimonials/Logos/Ratings), Einwandbehandlung (FAQs/Policies), Visuals.">Convincing</h4>
+          <div class="bar"><span id="score-convincing"></span></div><small id="qual-convincing"></small>
+        </div>
+        <div class="score-card">
+          <h4 class="has-tip" data-tip="Technical (light): nur HTML-Basics (HTTPS, &lt;title&gt;, Meta Description, H1, Viewport, Canonical, Alt-Texte). Keine Tracking/Core Web Vitals.">Technical <small style="font-weight:400;opacity:.75">(basic hygiene — light check)</small></h4>
+          <div class="bar"><span id="score-technical"></span></div><small id="qual-technical"></small>
+        </div>
+      </div>
+
+      <p class="note">Disclaimer: Dieser Checker parst nur statisches HTML. Kein Tracking, keine Core Web Vitals, kein gerendertes JS.</p>
+
+      <div class="two-col">
+        <div>
+          <h4>What works</h4>
+          <ul id="positives"></ul>
+        </div>
+        <div>
+          <h4>Improvements</h4>
+          <ul id="improvements"></ul>
+        </div>
+      </div>
+
+      <div class="feedback">
+        <span>Passt die Bewertung?</span>
+        <button id="fbUp" class="btn-secondary">👍</button>
+        <button id="fbDown" class="btn-secondary">👎</button>
+        <span id="fbStatus" class="muted"></span>
+      </div>
+    </section>
+
+    <footer class="footer">© Tim Clausen 2025 — This tool targets SEA/BoFu landing pages, not general websites.</footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+</body>
+</html>
