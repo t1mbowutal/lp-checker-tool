@@ -1,1 +1,0 @@
-(JS as provided earlier)
