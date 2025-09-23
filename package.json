@@ -1,7 +1,0 @@
-{
-  "name": "lp-checker-flat-v2",
-  "private": true,
-  "engines": {
-    "node": ">=18"
-  }
-}
