@@ -1,7 +1,7 @@
 {
   "name": "lp-checker-tool",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.3.0",
   "engines": {
     "node": "22.x"
   },
@@ -15,11 +15,5 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "cheerio": "1.0.0"
-  },
-  "devDependencies": {
-    "typescript": "5.4.5",
-    "@types/node": "20.11.30",
-    "@types/react": "18.2.66",
-    "@types/react-dom": "18.2.22"
   }
 }
