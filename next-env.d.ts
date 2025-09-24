@@ -1,1 +1,2 @@
-/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
