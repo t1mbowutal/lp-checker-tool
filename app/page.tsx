@@ -12,7 +12,6 @@ function Qual({score}:{score:number}){
   return <>{label}</>;
 }
 
-
 function shorten(u:string, max=72){
   if(!u) return "";
   if(u.length<=max) return u;
@@ -28,7 +27,7 @@ export default function Page(){
 
   async function analyze(){
     if(!url) return;
-    setLoading(true); setData(null); setFbMsg("");
+    setLoading(true); setData(null);
     try{
       const res = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
       if(!res.ok) throw new Error(`API error: ${res.status}`);
@@ -122,14 +121,7 @@ export default function Page(){
                 <ul>{(data.improvements||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
               </div>
             </div>
-
-            <div className="feedback">
-              
-              <button className="btn-secondary" onClick={()=>sendFeedback("up")}>👍</button>
-              <button className="btn-secondary" onClick={()=>sendFeedback("down")}>👎</button>
-              <span className="muted"></span>
-            </div>
-          </>
+</>
         )}
       </section>
 
