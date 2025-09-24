@@ -1,0 +1,32 @@
+:root { --bg:#0b0b0f; --panel:#11131a; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#ff6e00; --border:#1d2230; }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;margin:0}
+.container{max-width:980px;margin:0 auto;padding:24px 16px 80px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin:12px 0}
+.row{display:flex;gap:12px;align-items:center}
+input[type="url"]{flex:1;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#0f1220;color:var(--ink);outline:none}
+.btn-primary,.btn-secondary{padding:12px 14px;border-radius:10px;border:1px solid var(--border);cursor:pointer}
+.btn-primary{background:var(--accent);color:#fff;border:none}
+.btn-secondary{background:#1a1f2b;color:var(--ink)}
+.hero .sub{color:var(--muted);margin-top:4px}
+.checklist summary{cursor:pointer;font-weight:600}
+.footer{text-align:center;color:var(--muted);font-size:12px;margin-top:16px}
+.exec{display:flex;flex-direction:column;gap:6px}
+.exec-title{font-weight:700}
+.score-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+.score-card{background:#0f1220;border:1px solid var(--border);border-radius:10px;padding:12px;position:relative}
+.bar{height:10px;background:#22283a;border-radius:8px;overflow:hidden;margin:8px 0}
+.bar span{display:block;height:100%;background:var(--accent)}
+.note{color:var(--muted);font-size:12px;margin-top:8px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+ul{margin:6px 0 0 18px}
+.feedback{display:flex;align-items:center;gap:8px;margin-top:12px}
+.muted{color:var(--muted);font-size:12px}
+.tip{display:inline-flex;align-items:center;gap:6px;position:relative}
+.tip .tip-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px dashed #667;color:#9bb;font-size:12px;line-height:1;cursor:help}
+.tip:hover .tip-bubble{opacity:1;transform:translateY(0)}
+.tip-bubble{position:absolute;left:12px;top:34px;max-width:280px;background:#0c101a;color:#e7e9ee;border:1px solid #223;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.3;white-space:pre-wrap;z-index:10;opacity:0;transform:translateY(-4px);transition:.15s ease}
+
+.bar span.bar-lo{background:#991b1b}
+.bar span.bar-mid{background:#b45309}
+.bar span.bar-hi{background:#166534}
