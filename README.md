@@ -1,3 +1,3 @@
-# LP Checker Tool
+# LP Checker Tool – UI Version
 
-Minimal Next.js 14 app with analyze API.
+Next.js 14 App with styled UI, checklist dropdown, and PDF export.
