@@ -1,123 +1,160 @@
 "use client";
 
 import { useState } from "react";
+import Script from "next/script";
 
+type Scores = { overall:number; bofu:number; convincing:number; technical:number };
 type Result = {
-  ok: boolean;
-  url: string;
-  status: number | null;
-  durationMs: number;
-  title?: string | null;
-  description?: string | null;
-  h1Count?: number;
-  canonical?: string | null;
-  issues: string[];
+  scores: Scores;
+  positives: string[];
+  improvements: string[];
+  summary?: string;
 };
 
-export default function Home() {
+function Qual({score}:{score:number}){
+  const s = Math.round(score);
+  const label = s>=80?'Excellent': s>=60?'Good': s>=40?'Fair': s>=20?'Poor':'Very poor';
+  return <>{label}</>;
+}
+
+export default function Page(){
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<Result|null>(null);
+  const [fbMsg, setFbMsg] = useState("");
 
-  async function analyze() {
-    setError(null);
-    setResult(null);
-    if (!url) return;
+  async function analyze(){
+    if(!url) return;
     setLoading(true);
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url })
-      });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data: Result = await res.json();
-      setResult(data);
-    } catch (e:any) {
-      setError(e.message || "Unknown error");
-    } finally {
+    setData(null);
+    setFbMsg("");
+    try{
+      const res = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
+      if(!res.ok) throw new Error(`API error: ${res.status}`);
+      const j = await res.json();
+      setData(j);
+    }catch(e:any){
+      alert(e.message || "Failed to analyze");
+    }finally{
       setLoading(false);
     }
   }
 
-  function exportPdf() {
-    const content = document.getElementById("result-block")?.innerHTML || "";
-    const w = window.open("", "pdf");
-    if (!w) return;
-    w.document.write(`<html><body>${content}</body></html>`);
-    w.document.close();
-    w.print();
+  async function sendFeedback(vote:"up"|"down"){
+    if(!data) return;
+    setFbMsg("Sende Feedback...");
+    try{
+      const res = await fetch("/api/feedback",{
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({
+          url, scores: data.scores, positives: data.positives, improvements: data.improvements, vote, ts: Date.now()
+        })
+      });
+      if(!res.ok) throw new Error("Feedback failed");
+      setFbMsg("Danke!");
+    }catch{
+      setFbMsg("Feedback konnte nicht gespeichert werden (no-op).");
+    }
   }
 
   return (
-    <div className="container">
-      <h1>SEA Landingpage Checker</h1>
-      <div className="card vstack">
-        <label htmlFor="url">Landingpage URL</label>
-        <div className="hstack">
-          <input
-            id="url"
-            className="input"
-            placeholder="https://example.com"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <button className="button" onClick={analyze} disabled={loading || !url}>
+    <main className="container">
+      <section className="hero card">
+        <h1>Bottom of Funnel (BoFu) Landingpage Checker</h1>
+        <p className="sub">
+          Fokus: BOFU (CTA, Form/Kontakt, Pricing) + Convincing (Benefits, Trust, Objections, Visuals).
+          Technical ist ein <b>Basic‑Hygiene‑Light‑Check</b>. Export als PDF möglich.
+        </p>
+        <div className="row">
+          <input id="targetUrl" type="url" placeholder="https://example.com/your-landingpage" value={url} onChange={e=>setUrl(e.target.value)} />
+          <button id="analyzeBtn" className="btn-primary" onClick={analyze} disabled={loading || !url}>
             {loading ? "Analyzing..." : "Analyze"}
           </button>
-          {result && (
-            <button className="button" onClick={exportPdf}>
-              Export PDF
-            </button>
-          )}
+          <button id="exportPdfBtn" className="btn-secondary" onClick={()=>{
+            const element = document.querySelector(".report") as HTMLElement | null;
+            if (!element) return;
+            // @ts-ignore
+            window.html2pdf().set({ margin:10, filename:"bofu-landingpage-report.pdf", image:{type:"jpeg",quality:0.95}, html2canvas:{scale:2}, jsPDF:{unit:"mm",format:"a4",orientation:"portrait"} }).from(element).save();
+          }}>Export as PDF</button>
         </div>
-      </div>
+        <details className="checklist">
+          <summary>Landingpage Essentials (Checklist)</summary>
+          <ul>
+            <li>Klarer Primary CTA above the fold</li>
+            <li>Kurzes Lead-Formular oder direkter Kontaktweg</li>
+            <li>Nutzenorientierter Text + belastbare Belege/Trust</li>
+            <li>Einwandbehandlung (FAQs, Garantien, Transparenz bei Pricing)</li>
+            <li>Mobile Basics + SEO-Basics: HTTPS, canonical, Title, Meta</li>
+          </ul>
+        </details>
+      </section>
 
-      {error && <div className="card error">{error}</div>}
-
-      {result && (
-        <div id="result-block" className="card vstack">
-          <div className="hstack space-between">
-            <div className="hstack">
-              <span className="badge">Status: {result.status ?? "n/a"}</span>
-              <span className="badge">Time: {result.durationMs} ms</span>
+      <section id="report" className="card report" hidden={!data}>
+        {data && (
+          <>
+            <div id="summary">
+              <div className="exec">
+                <div className="exec-title">Executive summary</div>
+                <div className="exec-text">
+                  Overall score: <b>{Math.round(data.scores.overall)}</b>/100 — <Qual score={data.scores.overall}/> <br/>
+                  URL: <a href={url} target="_blank" rel="noopener">{url}</a>
+                </div>
+                {data.summary && <div className="exec-text" style={{marginTop:4}}>{data.summary}</div>}
+              </div>
             </div>
-            <a href={result.url} target="_blank" rel="noreferrer" className="badge">Open URL</a>
-          </div>
 
-          <div className="grid">
-            <div className="stat"><small>Title</small><div>{result.title || "—"}</div></div>
-            <div className="stat"><small>Description</small><div>{result.description || "—"}</div></div>
-            <div className="stat"><small>H1 Count</small><div>{result.h1Count}</div></div>
-            <div className="stat"><small>Canonical</small><div>{result.canonical || "—"}</div></div>
-          </div>
+            <div className="score-grid">
+              <div className="score-card">
+                <h4 className="has-tip" data-tip="Overall kombiniert BoFu (CTA, Form/Kontakt, Pricing), Convincing (Benefits, Trust, Objections, Visuals) und Technical Basics. 'Excellent' nur bei vollständiger Abdeckung.">Overall</h4>
+                <div className="bar"><span id="score-overall" style={{width:`${Math.max(0, Math.min(100, Math.round(data.scores.overall))) }%`}}/></div>
+                <small id="qual-overall"><Qual score={data.scores.overall}/></small>
+              </div>
+              <div className="score-card">
+                <h4 className="has-tip" data-tip="BoFu: klarer CTA, kurzer Lead-Pfad (Form/Kontakt), Pricing-Klarheit.">Purchase / BOFU</h4>
+                <div className="bar"><span id="score-bofu" style={{width:`${Math.max(0, Math.min(100, Math.round(data.scores.bofu))) }%`}}/></div>
+                <small id="qual-bofu"><Qual score={data.scores.bofu}/></small>
+              </div>
+              <div className="score-card">
+                <h4 className="has-tip" data-tip="Convincing: Nutzenargumente, Trust (Testimonials/Logos/Ratings), Einwandbehandlung (FAQs/Policies), Visuals.">Convincing</h4>
+                <div className="bar"><span id="score-convincing" style={{width:`${Math.max(0, Math.min(100, Math.round(data.scores.convincing))) }%`}}/></div>
+                <small id="qual-convincing"><Qual score={data.scores.convincing}/></small>
+              </div>
+              <div className="score-card">
+                <h4 className="has-tip" data-tip="Technical (light): nur HTML-Basics (HTTPS, <title>, Meta Description, H1, Viewport, Canonical, Alt-Texte). Keine Tracking/Core Web Vitals.">
+                  Technical <small style={{fontWeight:400,opacity:.75}}>(basic hygiene — light check)</small>
+                </h4>
+                <div className="bar"><span id="score-technical" style={{width:`${Math.max(0, Math.min(100, Math.round(data.scores.technical))) }%`}}/></div>
+                <small id="qual-technical"><Qual score={data.scores.technical}/></small>
+              </div>
+            </div>
 
-          <div className="vstack">
-            <b>Issues & Hints</b>
-            {result.issues.length === 0 ? (
-              <div>No obvious issues found.</div>
-            ) : (
-              <ul>{result.issues.map((it,i)=>(<li key={i}>{it}</li>))}</ul>
-            )}
-          </div>
+            <p className="note">Disclaimer: Dieser Checker parst nur statisches HTML. Kein Tracking, keine Core Web Vitals, kein gerendertes JS.</p>
 
-          <div className="dropdown">
-            <details>
-              <summary>Landingpage Checklist</summary>
-              <ul>
-                <li>Clear H1 headline</li>
-                <li>Primary CTA above the fold</li>
-                <li>Meta description present</li>
-                <li>Canonical tag set</li>
-                <li>Tracking codes implemented</li>
-              </ul>
-            </details>
-          </div>
-        </div>
-      )}
+            <div className="two-col">
+              <div>
+                <h4>What works</h4>
+                <ul id="positives">{(data.positives||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
+              </div>
+              <div>
+                <h4>Improvements</h4>
+                <ul id="improvements">{(data.improvements||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
+              </div>
+            </div>
 
-      <footer className="footer">© Tim Clausen 2025</footer>
-    </div>
+            <div className="feedback">
+              <span>Passt die Bewertung?</span>
+              <button id="fbUp" className="btn-secondary" onClick={()=>sendFeedback("up")}>👍</button>
+              <button id="fbDown" className="btn-secondary" onClick={()=>sendFeedback("down")}>👎</button>
+              <span id="fbStatus" className="muted">{fbMsg}</span>
+            </div>
+          </>
+        )}
+      </section>
+
+      <footer className="footer">© Tim Clausen 2025 — This tool targets SEA/BoFu landing pages, not general websites.</footer>
+
+      <Script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js" strategy="afterInteractive" />
+    </main>
   );
 }

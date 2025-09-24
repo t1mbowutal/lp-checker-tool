@@ -1,53 +1,199 @@
-import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 
-export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
-type Payload = { url?: string };
+function clamp(n:number, min=0, max=100){ return Math.max(min, Math.min(max, n)); }
+function pct(x:number){ return clamp(Math.round(x)); }
 
-function normalizeUrl(input: string): string | null {
-  try {
-    const u = new URL(input.startsWith("http") ? input : `https://${input}`);
-    return u.toString();
-  } catch {
-    return null;
+function scoreFromFlags(flags:Record<string,boolean>, weights:Record<string,number>){
+  let total = 0, wsum = 0;
+  for (const [key, w] of Object.entries(weights)){
+    wsum += Math.abs(w);
+    total += (flags[key] ? 1 : 0) * w * 100;
   }
+  if (wsum === 0) return 0;
+  return clamp(total / wsum);
 }
 
-export async function POST(req: Request) {
-  let body: Payload = {};
-  try { body = await req.json(); } catch {}
+async function fetchHtml(url:string){
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'User-Agent': 'Mozilla/5.0 (LP-Checker/1.0)' },
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+  const text = await res.text();
+  return text;
+}
 
-  const normalized = body.url ? normalizeUrl(body.url) : null;
-  if (!normalized) {
-    return NextResponse.json({ ok:false, url: body.url??"", status:null, durationMs:0, issues:["Invalid URL"] },{status:400});
+async function getFeedbackAggregate(targetUrl:string){
+  const base = process.env.SUPABASE_URL as string | undefined;
+  const key  = process.env.SUPABASE_ANON_KEY as string | undefined;
+  if (!base || !key) return null;
+
+  let url: URL;
+  try { url = new URL(targetUrl); } catch { return null; }
+  const norm = `${url.origin}${url.pathname}`;
+
+  const headers: Record<string,string> = {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+    'Prefer': 'count=exact'
+  };
+
+  const upRes = await fetch(`${base}/rest/v1/lp_feedback?select=vote&url=eq.${encodeURIComponent(norm)}&vote=eq.up`, { headers });
+  const upCount = parseInt(upRes.headers.get('content-range')?.split('/')?.[1] || '0', 10);
+
+  const downRes = await fetch(`${base}/rest/v1/lp_feedback?select=vote&url=eq.${encodeURIComponent(norm)}&vote=eq.down`, { headers });
+  const downCount = parseInt(downRes.headers.get('content-range')?.split('/')?.[1] || '0', 10);
+
+  return { norm, upCount, downCount, total: upCount + downCount };
+}
+
+function applyFeedbackAdjustment(scores:{overall:number,bofu:number,convincing:number,technical:number}, agg:any){
+  if (!agg || agg.total < 5) return { scores, feedbackAdj: 0 };
+  const sentiment = (agg.upCount - agg.downCount) / agg.total;
+  const confidence = Math.min(1, Math.log10(agg.total + 1) / 1.2);
+  const delta = clamp(sentiment * 10 * confidence, -8, 8);
+  let overall = scores.overall + delta;
+  if (agg.downCount / agg.total >= 0.7 && overall > 80){
+    overall = Math.min(overall, 79);
   }
+  return { scores: { ...scores, overall: clamp(overall) }, feedbackAdj: Math.round(delta * 10) / 10 };
+}
 
-  const started = Date.now();
-  let html = "";
-  let status: number | null = null;
-  try {
-    const res = await fetch(normalized, { cache:"no-store" });
-    status = res.status;
-    html = await res.text();
-  } catch {
-    const durationMs = Date.now()-started;
-    return NextResponse.json({ ok:false, url:normalized, status:null, durationMs, issues:["Fetch failed"] });
+function analyzeHtml(html:string, url:string){
+  const lower = html.toLowerCase();
+  // BOFU
+  const ctaRegex = /<(?:button|a)[^>]*(?:cta|kontakt|angebot|kaufen|jetzt|termin|anfragen|download|offerte|angebot anfordern|kontakt aufnehmen)/;
+  const hasPrimaryCta = ctaRegex.test(lower);
+  const ctaCount = (lower.match(/<(?:button|a)[^>]+(?:cta|kontakt|angebot|kaufen|jetzt|termin|anfragen|download|offerte)/g)||[]).length;
+  const hasForm = /<form[\s>]/.test(lower) || /(input|select|textarea)/.test(lower);
+  const contactRoute = /(tel:|mailto:|whatsapp\.com|\/kontakt|\/contact|\/anfrage|\/angebot)/.test(lower);
+  const pricing = /(preis|preise|kosten|pricing|price)/.test(lower);
+
+  // Convincing
+  const benefits = /(vorteil|benefit|mehrwert|warum|darum|so klappt|use case|nutzen)/.test(lower);
+  const trust = /(kundenstimme|referen[sz]|case|bewertung|trustpilot|testimonial|auszeichnung|zertifikat|kundenlogo|review|rating)/.test(lower);
+  const objections = /(faq|fragen und antwort|einwand|garantie|widerruf|datenschutz|security|sicherheit)/.test(lower);
+  const visuals = /<img[\s>]/.test(lower) || /(video|youtube|mp4|webm)/.test(lower);
+
+  // Technical basics
+  const httpsOk = url.startsWith('https://');
+  const canonical = /<link[^>]+rel=["']canonical["'][^>]*>/.test(lower);
+  const titleTag = /<title>[^<]{5,}<\/title>/.test(lower);
+  const metaDesc = /<meta[^>]+name=["']description["'][^>]*content=["'][^"']{20,}["']/.test(lower);
+  const h1 = /<h1[\s>]/.test(lower);
+  const mobile = /<meta[^>]+name=["']viewport["'][^>]*>/.test(lower);
+  const hasImg = /<img[\s>]/.test(lower);
+  const hasAlt = /<img[^>]+alt=/.test(lower);
+
+  let technical = 50;
+  if (httpsOk) technical += 12;
+  if (titleTag) technical += 10;
+  if (metaDesc) technical += 8;
+  if (h1) technical += 6;
+  if (mobile) technical += 6;
+  if (canonical) technical += 4;
+  if (hasImg && !hasAlt) technical -= 6;
+  technical = clamp(technical);
+
+  const bofuFlags = {
+    primaryCta: hasPrimaryCta,
+    multipleCtas: ctaCount >= 2,
+    formOrLead: hasForm || contactRoute,
+    explicitForm: hasForm,
+    explicitContact: contactRoute,
+    pricing
+  };
+  let bofu = scoreFromFlags(bofuFlags, {
+    primaryCta: 4,
+    multipleCtas: 1,
+    formOrLead: 3,
+    explicitForm: 2,
+    explicitContact: 2,
+    pricing: 2
+  });
+  if (!hasPrimaryCta) bofu = Math.min(bofu, 55);
+  if (!hasForm && !contactRoute) bofu = Math.min(bofu, 60);
+  if (!pricing) bofu = Math.min(bofu, 75);
+
+  const convincingFlags = { benefits, trust, objections, visuals };
+  let convincing = scoreFromFlags(convincingFlags, {
+    benefits: 3,
+    trust: 4,
+    objections: 3,
+    visuals: 2
+  });
+  if (!trust) convincing = Math.min(convincing, 65);
+  if (!benefits) convincing = Math.min(convincing, 70);
+  if (!objections) convincing = Math.min(convincing, 70);
+
+  let overall = clamp((bofu * 0.5) + (convincing * 0.35) + (technical * 0.15));
+
+  const missingPillars = [hasPrimaryCta, (hasForm || contactRoute), trust, benefits].filter(Boolean).length;
+  const missingCount = 4 - missingPillars;
+  if (missingCount >= 3) overall = Math.min(overall, 49);
+  else if (missingCount === 2) overall = Math.min(overall, 69);
+  else if (missingCount === 1) overall = Math.min(overall, 79);
+
+  const positives:string[] = [];
+  const improvements:string[] = [];
+
+  if (hasPrimaryCta) positives.push('Primary CTA found.'); else improvements.push('Add a single, clear primary CTA above the fold.');
+  if (hasForm) positives.push('Lead form present.');
+  if (contactRoute) positives.push('Direct contact route available (tel/mail/WhatsApp).');
+  if (!hasForm && !contactRoute) improvements.push('Provide a short form and/or an immediate contact route.');
+  if (pricing) positives.push('Pricing/Kosten information detected.'); else improvements.push('Clarify pricing or provide a cost estimate path.');
+  if (trust) positives.push('Trust signals present (testimonials/cases/ratings).'); else improvements.push('Add social proof: testimonials, case studies, ratings, or client logos.');
+  if (benefits) positives.push('Benefit-led messaging detected.'); else improvements.push('Strengthen benefits (outcomes) over features.');
+  if (objections) positives.push('Objection handling present (FAQs/guarantees/policies).'); else improvements.push('Address common objections (FAQ, guarantees, privacy/security).');
+  if (visuals) positives.push('Helpful visuals present (images/video).'); else improvements.push('Add product/service visuals or a short explainer video.');
+  if (httpsOk) positives.push('HTTPS enabled.');
+  if (!titleTag) improvements.push('Add a descriptive <title> tag.');
+  if (!metaDesc) improvements.push('Provide a meaningful meta description.');
+  if (!h1) improvements.push('Add a clear <h1> headline.');
+  if (!mobile) improvements.push('Include a responsive <meta name="viewport"> tag.');
+  if (!canonical) improvements.push('Add a canonical tag.');
+  if (hasImg && !hasAlt) improvements.push('Provide alt text for key images.');
+
+  const parts:string[] = [];
+  parts.push(`BoFu: ${pct(bofu)}/100 — ` + [
+    hasPrimaryCta ? 'clear CTA' : 'CTA missing',
+    (hasForm || contactRoute) ? 'lead path present' : 'no lead path',
+    pricing ? 'pricing visible' : 'pricing unclear'
+  ].join(', ') + '.');
+  parts.push(`Convincing: ${pct(convincing)}/100 — ` + [
+    benefits ? 'benefits present' : 'benefits weak',
+    trust ? 'trust present' : 'no trust',
+    objections ? 'objections handled' : 'no objections section',
+    visuals ? 'visuals present' : 'no visuals'
+  ].join(', ') + '.');
+  parts.push(`Technical (light): ${pct(technical)}/100 — HTML basics only.`);
+  const summary = parts.join(' ');
+
+  return {
+    scores: { overall, bofu, convincing, technical },
+    positives, improvements,
+    summary
+  };
+}
+
+export async function GET(req: Request){
+  try{
+    const { searchParams } = new URL(req.url);
+    const url = searchParams.get('url');
+    if (!url) return new Response(JSON.stringify({ error: 'Missing url' }), { status: 400 });
+    const html = await fetchHtml(url);
+    let result = analyzeHtml(html, url);
+    const agg = await getFeedbackAggregate(url);
+    const adj = applyFeedbackAdjustment(result.scores, agg);
+    result.scores = adj.scores;
+    if (adj.feedbackAdj && adj.feedbackAdj !== 0){
+      result.summary += ` Community adjustment: ${adj.feedbackAdj > 0 ? '+' : ''}${adj.feedbackAdj} based on ${agg?.total ?? 0} votes.`;
+    }
+    return new Response(JSON.stringify(result), { headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' } });
+  }catch(e:any){
+    return new Response(JSON.stringify({ error: e.message || 'Failed' }), { status: 500, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' } });
   }
-  const durationMs = Date.now()-started;
-
-  let title=null, description=null, canonical=null; let h1Count=0; const issues:string[]=[];
-  if (html) {
-    const $ = cheerio.load(html);
-    title = ($("title").first().text()||"").trim()||null;
-    description = ($("meta[name='description']").attr("content")||"").trim()||null;
-    canonical = ($("link[rel='canonical']").attr("href")||"").trim()||null;
-    h1Count = $("h1").length;
-    if (!title) issues.push("Missing <title>");
-    if (!description) issues.push("Missing description");
-    if (h1Count===0) issues.push("No <h1> found");
-    if (!canonical) issues.push("No canonical tag");
-  }
-
-  return NextResponse.json({ ok:true, url:normalized, status, durationMs, title, description, canonical, h1Count, issues });
 }
