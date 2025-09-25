@@ -110,7 +110,32 @@ export default function Page(){
             onClick={()=>{
               if(typeof window !== "undefined"){
                 const node = document.querySelector(".card.exec") as HTMLElement | null;
-                if(node) exportNodeToPDF_html2pdfOnly(node as HTMLElement, "Landingpage-Report.pdf");
+                if(node) if (typeof window === "undefined") return;
+  const nodeEl = document.getElementById("report-root") as HTMLElement | null;
+  const h2p = (window as any).html2pdf;
+  if (!nodeEl || !h2p) return;
+  const prevWidth = nodeEl.style.width;
+  const prevMaxWidth = nodeEl.style.maxWidth;
+  nodeEl.style.width = "210mm";
+  nodeEl.style.maxWidth = "210mm";
+  const opt = {
+    margin: 10,
+    filename: "Landingpage-Report.pdf",
+    pagebreak: { mode: ["avoid-all","css","legacy"] },
+    html2canvas: {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      windowWidth: nodeEl.scrollWidth || 1200,
+      windowHeight: nodeEl.scrollHeight || 2000,
+    },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  };
+  h2p().set(opt).from(nodeEl).save().finally(()=>{
+    nodeEl.style.width = prevWidth;
+    nodeEl.style.maxWidth = prevMaxWidth;
+  });
               }
             }}
           >
