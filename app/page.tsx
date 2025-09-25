@@ -127,7 +127,7 @@ export default function Page(){
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall <span title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical." style={marginLeft:6, cursor:'help', opacity:0.7}>ⓘ</span></h4>
+              <h4>Overall <span title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
               </div>
@@ -135,7 +135,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu <span title="Conversion path: form/CTA, direct contact options, pricing signals." style={marginLeft:6, cursor:'help', opacity:0.7}>ⓘ</span></h4>
+              <h4>Purchase / BoFu <span title="Conversion path: form/CTA, direct contact options, pricing signals." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
               </div>
@@ -143,7 +143,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Convincing <span title="Trust signals: testimonials, case studies, certifications; outcome evidence." style={marginLeft:6, cursor:'help', opacity:0.7}>ⓘ</span></h4>
+              <h4>Convincing <span title="Trust signals: testimonials, case studies, certifications; outcome evidence." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
               </div>
@@ -151,7 +151,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Technical <span title="Basic hygiene: title, meta description, H1, canonical, HTTPS." style={marginLeft:6, cursor:'help', opacity:0.7}>ⓘ</span></h4>
+              <h4>Technical <span title="Basic hygiene: title, meta description, H1, canonical, HTTPS." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
               </div>
