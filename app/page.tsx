@@ -127,7 +127,7 @@ export default function Page(){
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall</h4>
+              <h4>Overall (<abbr title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical.">i</abbr>)</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
               </div>
@@ -135,7 +135,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu</h4>
+              <h4>Purchase / BoFu (<abbr title="Conversion path: form/CTA, direct contact options, pricing signals.">i</abbr>)</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
               </div>
@@ -143,7 +143,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Convincing</h4>
+              <h4>Convincing (<abbr title="Trust signals: testimonials, case studies, certifications; outcome evidence.">i</abbr>)</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
               </div>
@@ -151,7 +151,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Technical</h4>
+              <h4>Technical (<abbr title="Basic hygiene: title, meta description, H1, canonical, HTTPS.">i</abbr>)</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
               </div>
