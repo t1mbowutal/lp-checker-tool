@@ -20,60 +20,7 @@ function exportNodeToPDF_html2pdfOnly(node: HTMLElement, fileName = "Landingpage
 }
 
 
-async function exportNodeToPDF(node: HTMLElement, fileName = "Landingpage-Report.pdf"){
-  const { default: html2canvas } = await import("html2canvas").catch(()=>({default:null} as any));
-  const jsPDFmod = await import("jspdf").catch(()=>null as any);
-  const jsPDF = (jsPDFmod && (jsPDFmod as any).default) || (window as any).jspdf?.jsPDF;
-  if(!html2canvas || !jsPDF){ 
-    const h2p = (window as any).html2pdf;
-    if(h2p){
-      const opt = {
-        margin: 10,
-        filename: fileName,
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-        html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: node.scrollWidth, windowHeight: node.scrollHeight },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-      return h2p().set(opt).from(node).save();
-    }
-    return;
-  }
-  const canvas = await html2canvas(node, {
-    scale: 2,
-    backgroundColor: "#ffffff",
-    useCORS: true,
-    windowWidth: node.scrollWidth,
-    windowHeight: node.scrollHeight,
-  });
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-  const pageW = 210, pageH = 297, margin = 10;
-  const imgW = pageW - margin*2;
-  const imgH = canvas.height * imgW / canvas.width;
 
-  if (imgH <= (pageH - margin*2)) {
-    pdf.addImage(imgData, "PNG", margin, margin, imgW, imgH);
-  } else {
-    const ratio = canvas.width / imgW; // px per mm
-    const sliceHmm = pageH - margin*2;
-    const sliceHpx = sliceHmm * ratio;
-    const pageCanvas = document.createElement("canvas");
-    const ctx = pageCanvas.getContext("2d")!;
-    let offsetPx = 0;
-    while (offsetPx < canvas.height) {
-      const h = Math.min(sliceHpx, canvas.height - offsetPx);
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = h;
-      ctx.clearRect(0,0,pageCanvas.width,pageCanvas.height);
-      ctx.drawImage(canvas, 0, offsetPx, canvas.width, h, 0, 0, canvas.width, h);
-      const pageImg = pageCanvas.toDataURL("image/png");
-      if (offsetPx > 0) pdf.addPage();
-      pdf.addImage(pageImg, "PNG", margin, margin, imgW, h / ratio);
-      offsetPx += h;
-    }
-  }
-  pdf.save(fileName);
-}
 
 
 type Scores = { overall:number; bofu:number; convincing:number; technical:number };
@@ -163,7 +110,7 @@ export default function Page(){
             onClick={()=>{
               if(typeof window !== "undefined"){
                 const node = document.querySelector(".card.exec") as HTMLElement | null;
-                if(node) exportNodeToPDF(node as HTMLElement, "Landingpage-Report.pdf");
+                if(node) exportNodeToPDF_html2pdfOnly(node as HTMLElement, "Landingpage-Report.pdf");
               }
             }}
           >
