@@ -4,11 +4,10 @@ import Script from "next/script";
 
 /**
  * HOTFIX for "white PDF" exports with html2pdf:
- * - Work directly on the live node (#report-root) instead of a detached clone.
- * - Ensure all <details> are open temporarily.
- * - Wait for all images (including lazy ones) to decode before snapshot.
- * - Apply print-focused inline CSS via a <style> tag added to <head> during export.
- * - Revert DOM changes afterwards.
+ * - Export directly from visible #report-root
+ * - Open <details>, load images, neutralize sticky/transform
+ * - Add print-only URL inside #report-root (requested)
+ * - Revert DOM after export
  */
 async function exportReportPDF() {
   if (typeof window === "undefined") return;
@@ -21,28 +20,25 @@ async function exportReportPDF() {
   const prevOpen = detailsList.map(d => d.open);
   detailsList.forEach(d => (d.open = true));
 
-  // 2) Force-load lazy images (including CSS backgrounds if needed)
+  // 2) Force-load lazy images
   const imgs = Array.from(root.querySelectorAll("img")) as HTMLImageElement[];
   const promises: Promise<void>[] = [];
   imgs.forEach(img => {
-    // Un-lazy
     if (img.getAttribute("loading") === "lazy") img.setAttribute("loading","eager");
     const dataSrc = img.getAttribute("data-src") || img.getAttribute("data-lazy");
     if (dataSrc && !img.src) img.src = dataSrc;
-
     if (img.complete && img.naturalWidth > 0) return;
-    promises.push(
-      (img.decode ? img.decode() : Promise.resolve()).catch(()=>{})
-    );
+    promises.push((img.decode ? img.decode() : Promise.resolve()).catch(()=>{}));
   });
 
-  // 3) Inject a print style (ensures white bg, black text, A4 width, avoids sticky/transform issues)
+  // 3) Inject print styles (also reveal .print-only blocks)
   const style = document.createElement("style");
   style.setAttribute("data-export-style","true");
   style.textContent = `
     @page { size: A4; margin: 10mm; }
     #report-root { background: #fff !important; color: #000 !important; }
     #report-root * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    #report-root a { color: #000 !important; text-decoration: none; }
     /* Neutralize transforms & sticky that can cause empty canvases */
     #report-root * { transform: none !important; position: static !important; }
     /* Bars */
@@ -50,20 +46,18 @@ async function exportReportPDF() {
     #report-root .bar span { display: block; height: 100%; background: #ff6e00 !important; }
     /* Grid */
     #report-root .score-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
-    /* Hide elements explicitly marked as no-print */
+    /* Hide/Show helpers */
     .no-print { display: none !important; }
-    /* Page breaks helper (optional) */
+    .print-only { display: block !important; }
+    /* Page break helper */
     .html2pdf__page-break { page-break-before: always; break-before: page; }
   `;
   document.head.appendChild(style);
 
-  // Wait a frame so styles apply
   await new Promise(r => requestAnimationFrame(()=>r(null)));
-
-  // 4) Await image readiness
   try { await Promise.all(promises); } catch {}
 
-  // 5) Export directly from the visible element
+  // 4) Export
   const opt = {
     margin:       [10,10,10,10],
     filename:     "Landingpage-Report.pdf",
@@ -84,9 +78,7 @@ async function exportReportPDF() {
   try {
     await h2p().set(opt).from(root).save();
   } finally {
-    // Revert details
     detailsList.forEach((d, i) => (d.open = prevOpen[i]));
-    // Remove style
     if (style && style.parentNode) style.parentNode.removeChild(style);
   }
 }
@@ -192,6 +184,13 @@ export default function Page(){
       </section>
 
       <section className="card exec" id="report-root">
+        {/* PRINT-ONLY URL INSIDE REPORT (hidden in UI, visible in PDF) */}
+        {url && (
+          <div className="print-only" style={{display:'none', fontSize:12, marginBottom:10}}>
+            <strong>Page:</strong> <a href={url} rel="noopener">{url}</a>
+          </div>
+        )}
+
         <details className="checklist" open>
           <summary>Landing Page Essentials (Checklist)</summary>
           <ul style={{marginLeft:18, marginTop:8}}>
