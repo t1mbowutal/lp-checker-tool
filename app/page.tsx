@@ -3,6 +3,74 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
+ * Robust PDF-Export (eine Datei):
+ * - Klont #report-root in einen temporären Container
+ * - Inlined CSS erzwingt schwarze Schrift / weißen Hintergrund / A4-Breite
+ * - Öffnet <details>, setzt Balkenfarben, fixed width
+ * - Übergibt Container an html2pdf, entfernt danach wieder
+ */
+function exportReportPDF() {
+  if (typeof window === "undefined") return;
+  const src = document.getElementById("report-root") as HTMLElement | null;
+  const h2p = (window as any).html2pdf;
+  if (!src || !h2p) return;
+
+  // Clone node
+  const clone = src.cloneNode(true) as HTMLElement;
+  // ensure details are open
+  clone.querySelectorAll("details").forEach(d => (d as HTMLDetailsElement).open = true);
+
+  // Build container with inline CSS
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.left = "-99999px"; // offscreen
+  container.style.top = "0";
+  container.style.width = "210mm";
+  container.style.maxWidth = "210mm";
+  container.style.background = "#ffffff";
+  container.style.color = "#000000";
+  container.className = "export-a4";
+
+  const style = document.createElement("style");
+  style.textContent = `
+    @page { size: A4; margin: 10mm; }
+    .export-a4, .export-a4 * { color: #000 !important; background: transparent !important; }
+    .export-a4 { width: 210mm !important; }
+    .export-a4 .score-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+    .export-a4 .score-card { border: 1px solid #ddd !important; border-radius: 8px; padding: 12px; }
+    .export-a4 .bar { height: 10px; background: #eee !important; border-radius: 8px; overflow: hidden; margin: 8px 0; }
+    .export-a4 .bar span { display: block; height: 100%; background: #ff6e00 !important; }
+    .export-a4 a { color: #000 !important; text-decoration: none; }
+    .export-a4 .muted { color: #333 !important; }
+    .no-print { display: none !important; }
+  `;
+
+  container.appendChild(style);
+  container.appendChild(clone);
+  document.body.appendChild(container);
+
+  const opt = {
+    margin: 10,
+    filename: "Landingpage-Report.pdf",
+    pagebreak: { mode: ["avoid-all","css","legacy"] },
+    html2canvas: {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: true,
+      windowWidth: container.scrollWidth || 1200,
+      windowHeight: container.scrollHeight || 2000,
+    },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  };
+
+  h2p().set(opt).from(container).save().finally(()=>{
+    document.body.removeChild(container);
+  });
+}
+
+
+/**
  * Stabiler PDF-Export über verstecktes IFRAME:
  * - kopiert den Report-Knoten in ein Iframe
  * - fügt minimales A4-Print-CSS ein
