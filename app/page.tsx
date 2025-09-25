@@ -14,30 +14,53 @@ function Qual({score}:{score:number}){
 
 function scoreClass(n:number){
   const s = Math.round(n||0);
-  return s>=67? "bar-hi": s>=34? "bar-mid":"bar-lo";
-}
-
-function shorten(u:string, max=72){
-  if(!u) return "";
-  if(u.length<=max) return u;
-  return u.slice(0, Math.floor(max*0.6)) + "…"+ u.slice(-Math.floor(max*0.3));
+  if (s>=67) return "high";
+  if (s>=34) return "med";
+  return "low";
 }
 
 export default function Page(){
-  const [url,setUrl] = useState("");
-  const [loading,setLoading] = useState(false);
-  const [data,setData] = useState<Result|null>(null);
+  const [url, setUrl] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Result|null>(null);
 
   async function analyze(){
     if(!url) return;
-    setLoading(true); setData(null);
+    setLoading(true);
+    setData(null);
     try{
-      const res = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
-      if(!res.ok) throw new Error(`API error: ${res.status}`);
+      const res = await fetch("/api/analyze", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ url })
+      });
       const j = await res.json();
       setData(j);
-    }catch(e:any){ alert(e?.message || "Failed to analyze"); }
-    finally{ setLoading(false); }
+    }catch(e:any){
+      alert(e?.message || "Analyze failed");
+    }finally{
+      setLoading(false);
+    }
+  }
+
+  function shorten(u:string, max=72){
+    try{
+      const out = u.replace(/^https?:\/\//,"");
+      return out.length>max ? out.slice(0,max-1)+"…" : out;
+    }catch{
+      return u;
+    }
+  }
+
+  function exportPDF(){
+    const node = document.querySelector('main');
+    const opt = {
+      margin:       10,
+      pagebreak:    { mode: ['avoid-all','css','legacy'] as any },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    } as any;
+    (window as any).html2pdf().set(opt).from(node).save('lp-checker.pdf');
   }
 
   function exportFeedbackCSV(vote:'up'|'down'){
@@ -70,6 +93,10 @@ export default function Page(){
           Focus: BOFU (CTA, form/contact, pricing) + Convincing (benefits, trust, objections, visuals).
           Technical is a basic hygiene light-check. Export as PDF available.
         </p>
+        <p className="sub" style={{marginTop:6}}>
+          This tool evaluates SEA/BoFu landing pages for structure, clarity, and conversion potential.
+          It does not measure real traffic, tracking, Core Web Vitals, or live campaign performance.
+        </p>
 
         <div className="row">
           <input
@@ -81,21 +108,11 @@ export default function Page(){
           <button className="btn-primary" onClick={analyze} disabled={loading || !url}>
             {loading ? "Analyzing..." : "Analyze"}
           </button>
-          <button
-            className="btn-secondary"
-            onClick={()=>{
-              if(typeof window !== "undefined"){
-                const node = document.querySelector(".card.exec") as HTMLElement | null;
-                if(node) (window as any).html2pdf?.().from(node).save("lp-checker.pdf");
-              }
-            }}
-          >
-            Export as PDF
-          </button>
+          <button className="btn-secondary" onClick={exportPDF}>Export as PDF</button>
         </div>
 
         {url && (
-          <div style={{marginTop:8, fontSize:12}}>
+          <div className="url-line">
             URL: <a href={url} target="_blank" rel="noopener" style={{color:"#ffffff"}}>{shorten(url,72)}</a>
           </div>
         )}
@@ -124,63 +141,61 @@ export default function Page(){
             </div>
             {data.mgmt && <div className="exec-text" style={{marginTop:6}}>{data.mgmt}</div>}
           </div>
-            <small className="muted">
-              Overall score: <b>{Math.round(data.scores.overall)}</b>/100 — <Qual score={data.scores.overall}/>
-            </small>
-            {data.mgmt && <div className="exec-text" style={{marginTop:6}}>{data.mgmt}</div>}
-          </div>
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall <sup><small><abbr title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical.">info</abbr></small></sup></h4>
-              <div className="bar">
-                <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
+              <h4>Overall <sup><span className="info">info</span></sup></h4>
+              <div className={`bar ${scoreClass(data.scores.overall)}`}>
+                <div className="fill" style={{width:`${Math.round(data.scores.overall)}%`}}></div>
               </div>
-              <small><Qual score={data.scores.overall}/></small>
+              <div className="muted"><Qual score={data.scores.overall}/></div>
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu <sup><small><abbr title="Conversion path: form/CTA, direct contact options, pricing signals.">info</abbr></small></sup></h4>
-              <div className="bar">
-                <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
+              <h4>Purchase / BoFu <sup><span className="info">info</span></sup></h4>
+              <div className={`bar ${scoreClass(data.scores.bofu)}`}>
+                <div className="fill" style={{width:`${Math.round(data.scores.bofu)}%`}}></div>
               </div>
-              <small><Qual score={data.scores.bofu}/></small>
+              <div className="muted"><Qual score={data.scores.bofu}/></div>
             </div>
 
             <div className="score-card">
-              <h4>Convincing <sup><small><abbr title="Trust signals: testimonials, case studies, certifications; outcome evidence.">info</abbr></small></sup></h4>
-              <div className="bar">
-                <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
+              <h4>Convincing <sup><span className="info">info</span></sup></h4>
+              <div className={`bar ${scoreClass(data.scores.convincing)}`}>
+                <div className="fill" style={{width:`${Math.round(data.scores.convincing)}%`}}></div>
               </div>
-              <small><Qual score={data.scores.convincing}/></small>
+              <div className="muted"><Qual score={data.scores.convincing}/></div>
             </div>
 
             <div className="score-card">
-              <h4>Technical <sup><small><abbr title="Basic hygiene: title, meta description, H1, canonical, HTTPS.">info</abbr></small></sup></h4>
-              <div className="bar">
-                <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
+              <h4>Technical <sup><span className="info">info</span></sup></h4>
+              <div className={`bar ${scoreClass(data.scores.technical)}`}>
+                <div className="fill" style={{width:`${Math.round(data.scores.technical)}%`}}></div>
               </div>
-              <small><Qual score={data.scores.technical}/></small>
+              <div className="muted"><Qual score={data.scores.technical}/></div>
             </div>
           </div>
 
-          <p className="note">
+          <div className="muted" style={{marginTop:12}}>
             Disclaimer: This checker parses static HTML only. No tracking, Core Web Vitals, or client-rendered JS.
-          </p>
+          </div>
 
-          <div className="two-col">
+          <div className="grid two mt">
             <div>
-              <h4>What works</h4>
-              <ul>{(data.positives||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
+              <h3>What works</h3>
+              <ul className="bullets">
+                {(data.positives||[]).map((x,i)=>(<li key={i}>{x}</li>))}
+              </ul>
             </div>
             <div>
-              <h4>Improvements</h4>
-              <ul>{(data.improvements||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
+              <h3>Improvements</h3>
+              <ul className="bullets">
+                {(data.improvements||[]).map((x,i)=>(<li key={i}>{x}</li>))}
+              </ul>
             </div>
           </div>
 
-          {/* Hidden thumbs-only feedback; downloads a CSV row. */}
-          <div style={{display:'flex', gap:8, alignItems:'center', justifyContent:'center', marginTop:10, opacity:0.5}}>
+          <div className="thumbs">
             <button className="btn-secondary" onClick={()=>exportFeedbackCSV('up')}>👍</button>
             <button className="btn-secondary" onClick={()=>exportFeedbackCSV('down')}>👎</button>
           </div>
