@@ -3,12 +3,12 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
- * HOTFIX CLEAN:
+ * HOTFIX CLEAN WITH TOOLTIPS:
  * - White-PDF bug fixed
  * - URL visible in PDF
  * - Headings in score cards visible
  * - Removed thumbs feedback
- * - Removed inline "info" tooltips (or dropped entirely)
+ * - Tooltips visible in UI, hidden in PDF
  */
 async function exportReportPDF() {
   if (typeof window === "undefined") return;
@@ -46,6 +46,8 @@ async function exportReportPDF() {
     #report-root .score-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
     .no-print { display: none !important; }
     .print-only { display: block !important; }
+    /* hide info-tooltips in PDF */
+    #report-root .info-tip { display: none !important; }
   `;
   document.head.appendChild(style);
 
@@ -187,7 +189,7 @@ export default function Page(){
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall</h4>
+              <h4>Overall <sup className="info-tip"><small><abbr title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical.">info</abbr></small></sup></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
               </div>
@@ -195,7 +197,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu</h4>
+              <h4>Purchase / BoFu <sup className="info-tip"><small><abbr title="Conversion path: form/CTA, direct contact options, pricing signals.">info</abbr></small></sup></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
               </div>
@@ -203,7 +205,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Convincing</h4>
+              <h4>Convincing <sup className="info-tip"><small><abbr title="Trust signals: testimonials, case studies, certifications; outcome evidence.">info</abbr></small></sup></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
               </div>
@@ -211,7 +213,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Technical</h4>
+              <h4>Technical <sup className="info-tip"><small><abbr title="Basic hygiene: title, meta description, H1, canonical, HTTPS.">info</abbr></small></sup></h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
               </div>
