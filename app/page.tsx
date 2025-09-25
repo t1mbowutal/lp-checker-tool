@@ -2,6 +2,24 @@
 import { useState } from "react";
 import Script from "next/script";
 
+/**
+ * PDF-Export (html2pdf-only): nutzt ausschließlich das bereits via <Script> geladene Bundle.
+ * Keine zusätzlichen Imports/Dependencies -> verhindert Build-Fehler.
+ */
+function exportNodeToPDF_html2pdfOnly(node: HTMLElement, fileName = "Landingpage-Report.pdf"){
+  const h2p = (typeof window !== "undefined" && (window as any).html2pdf) || null;
+  if(!h2p || !node) return;
+  const opt = {
+    margin: 10,
+    filename: fileName,
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: node.scrollWidth, windowHeight: node.scrollHeight },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  h2p().set(opt).from(node).save();
+}
+
+
 async function exportNodeToPDF(node: HTMLElement, fileName = "Landingpage-Report.pdf"){
   const { default: html2canvas } = await import("html2canvas").catch(()=>({default:null} as any));
   const jsPDFmod = await import("jspdf").catch(()=>null as any);
