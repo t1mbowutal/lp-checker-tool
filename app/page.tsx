@@ -62,16 +62,25 @@ export default function Page(){
     a.remove();
   }
 
-  return (
+  
+  function exportPDF(){
+    const node = document.querySelector('main');
+    const opt = {
+      margin:       10,
+      pagebreak:    { mode: ['avoid-all','css','legacy'] },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    // @ts-ignore
+    window.html2pdf().set(opt).from(node).save('lp-checker.pdf');
+  }
+return (
     <main className="container">
       <section className="hero card">
         <h1>Bottom of Funnel (BoFu) Landing Page Checker</h1>
         <p className="sub">
           Focus: BOFU (CTA, form/contact, pricing) + Convincing (benefits, trust, objections, visuals).
           Technical is a basic hygiene light-check. Export as PDF available.
-        </p>
-        <p className="sub" style={{marginTop:6}}>
-          This tool evaluates SEA/BoFu landing pages for structure, clarity, and conversion potential. It does not measure real traffic, tracking, Core Web Vitals, or live campaign performance.
         </p>
 
         <div className="row">
@@ -121,10 +130,10 @@ export default function Page(){
 
         {data && (<>
           <div className="exec">
-            <div className="exec-title" style={{fontSize:"1.75rem", fontWeight:800}}>Executive summary</div>
-            <div className="muted" style={{color:"#ff6e00", fontWeight:800, fontSize:"1.125rem", marginTop:2}}>
+            <div className="exec-title">Executive summary</div>
+            <small className="muted">
               Overall score: <b>{Math.round(data.scores.overall)}</b>/100 — <Qual score={data.scores.overall}/>
-            </div>
+            </small>
             {data.mgmt && <div className="exec-text" style={{marginTop:6}}>{data.mgmt}</div>}
           </div>
 
