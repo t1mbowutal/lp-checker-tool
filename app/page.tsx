@@ -2,6 +2,62 @@
 import { useState } from "react";
 import Script from "next/script";
 
+async function exportNodeToPDF(node: HTMLElement, fileName = "Landingpage-Report.pdf"){
+  const { default: html2canvas } = await import("html2canvas").catch(()=>({default:null} as any));
+  const jsPDFmod = await import("jspdf").catch(()=>null as any);
+  const jsPDF = (jsPDFmod && (jsPDFmod as any).default) || (window as any).jspdf?.jsPDF;
+  if(!html2canvas || !jsPDF){ 
+    const h2p = (window as any).html2pdf;
+    if(h2p){
+      const opt = {
+        margin: 10,
+        filename: fileName,
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: node.scrollWidth, windowHeight: node.scrollHeight },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      return h2p().set(opt).from(node).save();
+    }
+    return;
+  }
+  const canvas = await html2canvas(node, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    windowWidth: node.scrollWidth,
+    windowHeight: node.scrollHeight,
+  });
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const pageW = 210, pageH = 297, margin = 10;
+  const imgW = pageW - margin*2;
+  const imgH = canvas.height * imgW / canvas.width;
+
+  if (imgH <= (pageH - margin*2)) {
+    pdf.addImage(imgData, "PNG", margin, margin, imgW, imgH);
+  } else {
+    const ratio = canvas.width / imgW; // px per mm
+    const sliceHmm = pageH - margin*2;
+    const sliceHpx = sliceHmm * ratio;
+    const pageCanvas = document.createElement("canvas");
+    const ctx = pageCanvas.getContext("2d")!;
+    let offsetPx = 0;
+    while (offsetPx < canvas.height) {
+      const h = Math.min(sliceHpx, canvas.height - offsetPx);
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = h;
+      ctx.clearRect(0,0,pageCanvas.width,pageCanvas.height);
+      ctx.drawImage(canvas, 0, offsetPx, canvas.width, h, 0, 0, canvas.width, h);
+      const pageImg = pageCanvas.toDataURL("image/png");
+      if (offsetPx > 0) pdf.addPage();
+      pdf.addImage(pageImg, "PNG", margin, margin, imgW, h / ratio);
+      offsetPx += h;
+    }
+  }
+  pdf.save(fileName);
+}
+
+
 type Scores = { overall:number; bofu:number; convincing:number; technical:number };
 type Result = { scores: Scores; positives?: string[]; improvements?: string[]; mgmt?: string };
 
@@ -14,53 +70,30 @@ function Qual({score}:{score:number}){
 
 function scoreClass(n:number){
   const s = Math.round(n||0);
-  if (s>=67) return "high";
-  if (s>=34) return "med";
-  return "low";
+  return s>=67? "bar-hi": s>=34? "bar-mid":"bar-lo";
+}
+
+function shorten(u:string, max=72){
+  if(!u) return "";
+  if(u.length<=max) return u;
+  return u.slice(0, Math.floor(max*0.6)) + "…"+ u.slice(-Math.floor(max*0.3));
 }
 
 export default function Page(){
-  const [url, setUrl] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<Result|null>(null);
+  const [url,setUrl] = useState("");
+  const [loading,setLoading] = useState(false);
+  const [data,setData] = useState<Result|null>(null);
 
   async function analyze(){
     if(!url) return;
-    setLoading(true);
-    setData(null);
+    setLoading(true); setData(null);
     try{
-      const res = await fetch("/api/analyze", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ url })
-      });
+      const res = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
+      if(!res.ok) throw new Error(`API error: ${res.status}`);
       const j = await res.json();
       setData(j);
-    }catch(e:any){
-      alert(e?.message || "Analyze failed");
-    }finally{
-      setLoading(false);
-    }
-  }
-
-  function shorten(u:string, max=72){
-    try{
-      const out = u.replace(/^https?:\/\//,"");
-      return out.length>max ? out.slice(0,max-1)+"…" : out;
-    }catch{
-      return u;
-    }
-  }
-
-  function exportPDF(){
-    const node = document.querySelector('main');
-    const opt = {
-      margin:       10,
-      pagebreak:    { mode: ['avoid-all','css','legacy'] as any },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    } as any;
-    (window as any).html2pdf().set(opt).from(node).save('lp-checker.pdf');
+    }catch(e:any){ alert(e?.message || "Failed to analyze"); }
+    finally{ setLoading(false); }
   }
 
   function exportFeedbackCSV(vote:'up'|'down'){
@@ -94,8 +127,7 @@ export default function Page(){
           Technical is a basic hygiene light-check. Export as PDF available.
         </p>
         <p className="sub" style={{marginTop:6}}>
-          This tool evaluates SEA/BoFu landing pages for structure, clarity, and conversion potential.
-          It does not measure real traffic, tracking, Core Web Vitals, or live campaign performance.
+          This tool evaluates SEA/BoFu landing pages for structure, clarity, and conversion potential. It does not measure real traffic, tracking, Core Web Vitals, or live campaign performance.
         </p>
 
         <div className="row">
@@ -108,17 +140,27 @@ export default function Page(){
           <button className="btn-primary" onClick={analyze} disabled={loading || !url}>
             {loading ? "Analyzing..." : "Analyze"}
           </button>
-          <button className="btn-secondary" onClick={exportPDF}>Export as PDF</button>
+          <button
+            className="btn-secondary"
+            onClick={()=>{
+              if(typeof window !== "undefined"){
+                const node = document.querySelector(".card.exec") as HTMLElement | null;
+                if(node) exportNodeToPDF(node as HTMLElement, "Landingpage-Report.pdf");
+              }
+            }}
+          >
+            Export as PDF
+          </button>
         </div>
 
         {url && (
-          <div className="url-line">
+          <div style={{marginTop:8, fontSize:12}}>
             URL: <a href={url} target="_blank" rel="noopener" style={{color:"#ffffff"}}>{shorten(url,72)}</a>
           </div>
         )}
       </section>
 
-      <section className="card exec">
+      <section className="card exec" id="report-root">
         <details className="checklist" open>
           <summary>Landing Page Essentials (Checklist)</summary>
           <ul style={{marginLeft:18, marginTop:8}}>
@@ -134,9 +176,9 @@ export default function Page(){
         </details>
 
         {data && (<>
-          <div className="exec" style={{marginBottom:12}}>
-            <div className="exec-title" style={{fontSize:"1.75rem", fontWeight:800, display:"block"}}>Executive Summary</div>
-            <div className="muted" style={{color:"#ff6e00", fontWeight:800, fontSize:"1.125rem", margin:"4px 0 10px", display:"block"}}>
+          <div className="exec">
+            <div className="exec-title" style={{fontSize:"1.75rem", fontWeight:800}}>Executive summary</div>
+            <div className="muted" style={{color:"#ff6e00", fontWeight:800, fontSize:"1.125rem", marginTop:2}}>
               Overall score: <b>{Math.round(data.scores.overall)}</b>/100 — <Qual score={data.scores.overall}/>
             </div>
             {data.mgmt && <div className="exec-text" style={{marginTop:6}}>{data.mgmt}</div>}
@@ -144,58 +186,55 @@ export default function Page(){
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall <sup><span className="info">info</span></sup></h4>
-              <div className={`bar ${scoreClass(data.scores.overall)}`}>
-                <div className="fill" style={{width:`${Math.round(data.scores.overall)}%`}}></div>
+              <h4>Overall <sup><small><abbr title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical.">info</abbr></small></sup></h4>
+              <div className="bar">
+                <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
               </div>
-              <div className="muted"><Qual score={data.scores.overall}/></div>
+              <small><Qual score={data.scores.overall}/></small>
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu <sup><span className="info">info</span></sup></h4>
-              <div className={`bar ${scoreClass(data.scores.bofu)}`}>
-                <div className="fill" style={{width:`${Math.round(data.scores.bofu)}%`}}></div>
+              <h4>Purchase / BoFu <sup><small><abbr title="Conversion path: form/CTA, direct contact options, pricing signals.">info</abbr></small></sup></h4>
+              <div className="bar">
+                <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
               </div>
-              <div className="muted"><Qual score={data.scores.bofu}/></div>
+              <small><Qual score={data.scores.bofu}/></small>
             </div>
 
             <div className="score-card">
-              <h4>Convincing <sup><span className="info">info</span></sup></h4>
-              <div className={`bar ${scoreClass(data.scores.convincing)}`}>
-                <div className="fill" style={{width:`${Math.round(data.scores.convincing)}%`}}></div>
+              <h4>Convincing <sup><small><abbr title="Trust signals: testimonials, case studies, certifications; outcome evidence.">info</abbr></small></sup></h4>
+              <div className="bar">
+                <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
               </div>
-              <div className="muted"><Qual score={data.scores.convincing}/></div>
+              <small><Qual score={data.scores.convincing}/></small>
             </div>
 
             <div className="score-card">
-              <h4>Technical <sup><span className="info">info</span></sup></h4>
-              <div className={`bar ${scoreClass(data.scores.technical)}`}>
-                <div className="fill" style={{width:`${Math.round(data.scores.technical)}%`}}></div>
+              <h4>Technical <sup><small><abbr title="Basic hygiene: title, meta description, H1, canonical, HTTPS.">info</abbr></small></sup></h4>
+              <div className="bar">
+                <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
               </div>
-              <div className="muted"><Qual score={data.scores.technical}/></div>
+              <small><Qual score={data.scores.technical}/></small>
             </div>
           </div>
 
-          <div className="muted" style={{marginTop:12}}>
+          <p className="note">
             Disclaimer: This checker parses static HTML only. No tracking, Core Web Vitals, or client-rendered JS.
-          </div>
+          </p>
 
-          <div className="grid two mt">
+          <div className="two-col">
             <div>
-              <h3>What works</h3>
-              <ul className="bullets">
-                {(data.positives||[]).map((x,i)=>(<li key={i}>{x}</li>))}
-              </ul>
+              <h4>What works</h4>
+              <ul>{(data.positives||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
             </div>
             <div>
-              <h3>Improvements</h3>
-              <ul className="bullets">
-                {(data.improvements||[]).map((x,i)=>(<li key={i}>{x}</li>))}
-              </ul>
+              <h4>Improvements</h4>
+              <ul>{(data.improvements||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
             </div>
           </div>
 
-          <div className="thumbs">
+          {/* Hidden thumbs-only feedback; downloads a CSV row. */}
+          <div style={{display:'flex', gap:8, alignItems:'center', justifyContent:'center', marginTop:10, opacity:0.5}}>
             <button className="btn-secondary" onClick={()=>exportFeedbackCSV('up')}>👍</button>
             <button className="btn-secondary" onClick={()=>exportFeedbackCSV('down')}>👎</button>
           </div>
