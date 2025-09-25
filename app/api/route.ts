@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-async function doAnalyze(target:string){
+async function analyze(target:string){
   const res = await fetch(target, {
     headers: {
       "user-agent": "LP-Checker/1.0 (+lp-checker-tool.vercel.app)",
@@ -24,15 +24,27 @@ async function doAnalyze(target:string){
   };
 }
 
-export async function GET() {
-  return Response.json({ ok: true, ping: "up" }, { status: 200 });
-}
-export async function POST(req: Request) {
-  const data = await req.json().catch(()=>({}));
-  const url = (data?.url || "").toString().trim();
-  if(!url) return Response.json({ ok:false, error:"Missing url" }, { status:400 });
+// GET now supports ?url=...
+export async function GET(req: Request) {
   try{
-    const out = await doAnalyze(url);
+    const u = new URL(req.url);
+    const target = (u.searchParams.get("url") || "").toString().trim();
+    if(!target){
+      return Response.json({ ok:true, ping:"up" }, { status:200 });
+    }
+    const out = await analyze(target);
+    return Response.json(out, { status: out.ok ? 200 : (out.status || 500) });
+  }catch(e:any){
+    return Response.json({ ok:false, error: e?.message || String(e) }, { status:500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try{
+    const body = await req.json().catch(()=>({}));
+    const target = (body?.url || "").toString().trim();
+    if(!target) return Response.json({ ok:false, error:"Missing url" }, { status:400 });
+    const out = await analyze(target);
     return Response.json(out, { status: out.ok ? 200 : (out.status || 500) });
   }catch(e:any){
     return Response.json({ ok:false, error: e?.message || String(e) }, { status:500 });
