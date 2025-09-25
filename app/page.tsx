@@ -3,10 +3,12 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
- * HOTFIX for "white PDF" exports with html2pdf
- * + print-only URL
- * + ensure score-card headings visible in PDF (white card bg, black headings)
- * No other UI changes.
+ * HOTFIX CLEAN:
+ * - White-PDF bug fixed
+ * - URL visible in PDF
+ * - Headings in score cards visible
+ * - Removed thumbs feedback
+ * - Removed inline "info" tooltips (or dropped entirely)
  */
 async function exportReportPDF() {
   if (typeof window === "undefined") return;
@@ -14,12 +16,10 @@ async function exportReportPDF() {
   const h2p = (window as any).html2pdf;
   if (!root || !h2p) return;
 
-  // Open <details> during export
   const detailsList = Array.from(root.querySelectorAll("details")) as HTMLDetailsElement[];
   const prevOpen = detailsList.map(d => d.open);
   detailsList.forEach(d => (d.open = true));
 
-  // Ensure images are loaded
   const imgs = Array.from(root.querySelectorAll("img")) as HTMLImageElement[];
   const promises: Promise<void>[] = [];
   imgs.forEach(img => {
@@ -30,7 +30,6 @@ async function exportReportPDF() {
     promises.push((img.decode ? img.decode() : Promise.resolve()).catch(()=>{}));
   });
 
-  // Print styles (adjusted)
   const style = document.createElement("style");
   style.setAttribute("data-export-style","true");
   style.textContent = `
@@ -38,22 +37,15 @@ async function exportReportPDF() {
     #report-root { background: #fff !important; color: #000 !important; }
     #report-root * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     #report-root a { color: #000 !important; text-decoration: none; }
-    /* Neutralize transforms & sticky (can cause empty canvases) */
     #report-root * { transform: none !important; position: static !important; }
-    /* Make score cards readable for print */
-    #report-root .score-card { background: #ffffff !important; color: #000 !important; border: 1px solid #bbb !important; border-radius: 8px; }
+    #report-root .score-card { background: #ffffff !important; color: #000 !important; border: 1px solid #bbb !important; border-radius: 8px; padding: 8px; }
     #report-root .score-card h4 { color: #000 !important; font-weight: 800 !important; margin-bottom: 6px !important; }
     #report-root .score-card small { color:#000 !important; }
-    /* Bars */
     #report-root .bar { height: 10px; background: #eee !important; border-radius: 8px; overflow: hidden; margin: 8px 0; }
     #report-root .bar span { display: block; height: 100%; background: #ff6e00 !important; }
-    /* Grid */
     #report-root .score-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
-    /* Hide/Show helpers */
     .no-print { display: none !important; }
     .print-only { display: block !important; }
-    /* Page break helper */
-    .html2pdf__page-break { page-break-before: always; break-before: page; }
   `;
   document.head.appendChild(style);
 
@@ -124,28 +116,6 @@ export default function Page(){
     finally{ setLoading(false); }
   }
 
-  function exportFeedbackCSV(vote:'up'|'down'){
-    if(!data) return;
-    const row = [
-      new Date().toISOString(),
-      url,
-      Math.round(data.scores.overall),
-      Math.round(data.scores.bofu),
-      Math.round(data.scores.convincing),
-      Math.round(data.scores.technical),
-      vote
-    ].join(',');
-    const csv = 'timestamp,url,overall,bofu,convincing,technical,vote\\n' + row + '\\n';
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'lp-checker-feedback.csv';
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(a.href);
-    a.remove();
-  }
-
   return (
     <main className="container">
       <section className="hero card">
@@ -186,7 +156,6 @@ export default function Page(){
       </section>
 
       <section className="card exec" id="report-root">
-        {/* PRINT-ONLY URL INSIDE REPORT */}
         {url && (
           <div className="print-only" style={{display:'none', fontSize:12, marginBottom:10}}>
             <strong>Page:</strong> <a href={url} rel="noopener">{url}</a>
@@ -218,7 +187,7 @@ export default function Page(){
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall <sup><small><abbr title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical.">info</abbr></small></sup></h4>
+              <h4>Overall</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
               </div>
@@ -226,7 +195,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu <sup><small><abbr title="Conversion path: form/CTA, direct contact options, pricing signals.">info</abbr></small></sup></h4>
+              <h4>Purchase / BoFu</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
               </div>
@@ -234,7 +203,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Convincing <sup><small><abbr title="Trust signals: testimonials, case studies, certifications; outcome evidence.">info</abbr></small></sup></h4>
+              <h4>Convincing</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
               </div>
@@ -242,7 +211,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Technical <sup><small><abbr title="Basic hygiene: title, meta description, H1, canonical, HTTPS.">info</abbr></small></sup></h4>
+              <h4>Technical</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
               </div>
@@ -263,12 +232,6 @@ export default function Page(){
               <h4>Improvements</h4>
               <ul>{(data.improvements||[]).map((t,i)=>(<li key={i}>{t}</li>))}</ul>
             </div>
-          </div>
-
-          {/* Hidden thumbs-only feedback; downloads a CSV row. */}
-          <div style={{display:'flex', gap:8, alignItems:'center', justifyContent:'center', marginTop:10, opacity:0.5}}>
-            <button className="btn-secondary" onClick={()=>exportFeedbackCSV('up')}>👍</button>
-            <button className="btn-secondary" onClick={()=>exportFeedbackCSV('down')}>👎</button>
           </div>
         </>)}
       </section>
