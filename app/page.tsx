@@ -5,16 +5,6 @@ import Script from "next/script";
 type Scores = { overall:number; bofu:number; convincing:number; technical:number };
 type Result = { scores: Scores; positives?: string[]; improvements?: string[]; mgmt?: string };
 
-function Info({title}:{title:string}){
-  return <span
-    className="info-tip"
-    title={title}
-    aria-label="Info"
-    style={{marginLeft:6, cursor:'help', display:'inline-block', width:16, height:16, lineHeight:'16px', textAlign:'center', borderRadius:8, border:'1px solid #8aa', fontSize:10, opacity:0.8}}
-  >i</span>;
-}
-
-
 function Qual({score}:{score:number}){
   const s = Math.round(score||0);
   if(s>=67) return <>High</>;
@@ -137,7 +127,7 @@ export default function Page(){
 
           <div className="score-grid">
             <div className="score-card">
-              <h4>Overall <span title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span>/h4>
+              <h4 title="Weighted combination: 40% BoFu, 30% Convincing, 30% Technical.">Overall</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.overall)} style={{width:`${Math.round(data.scores.overall)}%`}}/>
               </div>
@@ -145,7 +135,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Purchase / BoFu <span title="Conversion path: form/CTA, direct contact options, pricing signals." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span>/h4>
+              <h4 title="Conversion path: form/CTA, direct contact options, pricing signals.">Purchase / BoFu</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.bofu)} style={{width:`${Math.round(data.scores.bofu)}%`}}/>
               </div>
@@ -153,7 +143,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Convincing <span title="Trust signals: testimonials, case studies, certifications; outcome evidence." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span>/h4>
+              <h4 title="Trust signals: testimonials, case studies, certifications; outcome evidence.">Convincing</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.convincing)} style={{width:`${Math.round(data.scores.convincing)}%`}}/>
               </div>
@@ -161,7 +151,7 @@ export default function Page(){
             </div>
 
             <div className="score-card">
-              <h4>Technical <span title="Basic hygiene: title, meta description, H1, canonical, HTTPS." style={{marginLeft:6, cursor:"help", opacity:0.7}}>ⓘ</span>/h4>
+              <h4 title="Basic hygiene: title, meta description, H1, canonical, HTTPS.">Technical</h4>
               <div className="bar">
                 <span className={scoreClass(data.scores.technical)} style={{width:`${Math.round(data.scores.technical)}%`}}/>
               </div>
