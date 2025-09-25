@@ -3,12 +3,13 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
- * HOTFIX CLEAN WITH TOOLTIPS:
+ * FINAL HOTFIX:
  * - White-PDF bug fixed
  * - URL visible in PDF
  * - Headings in score cards visible
  * - Removed thumbs feedback
  * - Tooltips visible in UI, hidden in PDF
+ * - Checklist title styled like "Executive summary" (no "1.")
  */
 async function exportReportPDF() {
   if (typeof window === "undefined") return;
@@ -46,7 +47,6 @@ async function exportReportPDF() {
     #report-root .score-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
     .no-print { display: none !important; }
     .print-only { display: block !important; }
-    /* hide info-tooltips in PDF */
     #report-root .info-tip { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -164,19 +164,18 @@ export default function Page(){
           </div>
         )}
 
-        <details className="checklist" open>
-          <summary>Landing Page Essentials (Checklist)</summary>
-          <ul style={{marginLeft:18, marginTop:8}}>
-            <li>Clear primary CTA above the fold (single dominant action).</li>
-            <li>Visible lead path: form, phone, email, or WhatsApp.</li>
-            <li>Pricing clarity (plans, ranges, or “Get a quote” path).</li>
-            <li>Trust signals: recognizable logos, testimonials, case studies, ratings.</li>
-            <li>Benefits stated in outcomes (numbers beat adjectives).</li>
-            <li>Objection handling (FAQs, guarantees, policies).</li>
-            <li>Meaningful visuals (product/context, not only stock).</li>
-            <li>Technical hygiene: title + meta description, H1, canonical, alt text, HTTPS.</li>
-          </ul>
-        </details>
+        {/* Checklist title styled as executive summary */}
+        <div className="exec-title" style={{fontSize:"1.75rem", fontWeight:800, marginBottom:10}}>Landing Page Essentials (Checklist)</div>
+        <ul style={{marginLeft:18, marginTop:8}}>
+          <li>Clear primary CTA above the fold (single dominant action).</li>
+          <li>Visible lead path: form, phone, email, or WhatsApp.</li>
+          <li>Pricing clarity (plans, ranges, or “Get a quote” path).</li>
+          <li>Trust signals: recognizable logos, testimonials, case studies, ratings.</li>
+          <li>Benefits stated in outcomes (numbers beat adjectives).</li>
+          <li>Objection handling (FAQs, guarantees, policies).</li>
+          <li>Meaningful visuals (product/context, not only stock).</li>
+          <li>Technical hygiene: title + meta description, H1, canonical, alt text, HTTPS.</li>
+        </ul>
 
         {data && (<>
           <div className="exec">
