@@ -3,70 +3,92 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
- * Robust PDF-Export (eine Datei):
- * - Klont #report-root in einen temporären Container
- * - Inlined CSS erzwingt schwarze Schrift / weißen Hintergrund / A4-Breite
- * - Öffnet <details>, setzt Balkenfarben, fixed width
- * - Übergibt Container an html2pdf, entfernt danach wieder
+ * HOTFIX for "white PDF" exports with html2pdf:
+ * - Work directly on the live node (#report-root) instead of a detached clone.
+ * - Ensure all <details> are open temporarily.
+ * - Wait for all images (including lazy ones) to decode before snapshot.
+ * - Apply print-focused inline CSS via a <style> tag added to <head> during export.
+ * - Revert DOM changes afterwards.
  */
-function exportReportPDF() {
+async function exportReportPDF() {
   if (typeof window === "undefined") return;
-  const src = document.getElementById("report-root") as HTMLElement | null;
+  const root = document.getElementById("report-root") as HTMLElement | null;
   const h2p = (window as any).html2pdf;
-  if (!src || !h2p) return;
+  if (!root || !h2p) return;
 
-  // Clone node
-  const clone = src.cloneNode(true) as HTMLElement;
-  // ensure details are open
-  clone.querySelectorAll("details").forEach(d => (d as HTMLDetailsElement).open = true);
+  // 1) Temporarily open <details>
+  const detailsList = Array.from(root.querySelectorAll("details")) as HTMLDetailsElement[];
+  const prevOpen = detailsList.map(d => d.open);
+  detailsList.forEach(d => (d.open = true));
 
-  // Build container with inline CSS
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-99999px"; // offscreen
-  container.style.top = "0";
-  container.style.width = "210mm";
-  container.style.maxWidth = "210mm";
-  container.style.background = "#ffffff";
-  container.style.color = "#000000";
-  container.className = "export-a4";
+  // 2) Force-load lazy images (including CSS backgrounds if needed)
+  const imgs = Array.from(root.querySelectorAll("img")) as HTMLImageElement[];
+  const promises: Promise<void>[] = [];
+  imgs.forEach(img => {
+    // Un-lazy
+    if (img.getAttribute("loading") === "lazy") img.setAttribute("loading","eager");
+    const dataSrc = img.getAttribute("data-src") || img.getAttribute("data-lazy");
+    if (dataSrc && !img.src) img.src = dataSrc;
 
+    if (img.complete && img.naturalWidth > 0) return;
+    promises.push(
+      (img.decode ? img.decode() : Promise.resolve()).catch(()=>{})
+    );
+  });
+
+  // 3) Inject a print style (ensures white bg, black text, A4 width, avoids sticky/transform issues)
   const style = document.createElement("style");
+  style.setAttribute("data-export-style","true");
   style.textContent = `
     @page { size: A4; margin: 10mm; }
-    .export-a4, .export-a4 * { color: #000 !important; background: transparent !important; }
-    .export-a4 { width: 210mm !important; }
-    .export-a4 .score-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
-    .export-a4 .score-card { border: 1px solid #ddd !important; border-radius: 8px; padding: 12px; }
-    .export-a4 .bar { height: 10px; background: #eee !important; border-radius: 8px; overflow: hidden; margin: 8px 0; }
-    .export-a4 .bar span { display: block; height: 100%; background: #ff6e00 !important; }
-    .export-a4 a { color: #000 !important; text-decoration: none; }
-    .export-a4 .muted { color: #333 !important; }
+    #report-root { background: #fff !important; color: #000 !important; }
+    #report-root * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    /* Neutralize transforms & sticky that can cause empty canvases */
+    #report-root * { transform: none !important; position: static !important; }
+    /* Bars */
+    #report-root .bar { height: 10px; background: #eee !important; border-radius: 8px; overflow: hidden; margin: 8px 0; }
+    #report-root .bar span { display: block; height: 100%; background: #ff6e00 !important; }
+    /* Grid */
+    #report-root .score-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+    /* Hide elements explicitly marked as no-print */
     .no-print { display: none !important; }
+    /* Page breaks helper (optional) */
+    .html2pdf__page-break { page-break-before: always; break-before: page; }
   `;
+  document.head.appendChild(style);
 
-  container.appendChild(style);
-  container.appendChild(clone);
-  document.body.appendChild(container);
+  // Wait a frame so styles apply
+  await new Promise(r => requestAnimationFrame(()=>r(null)));
 
+  // 4) Await image readiness
+  try { await Promise.all(promises); } catch {}
+
+  // 5) Export directly from the visible element
   const opt = {
-    margin: 10,
-    filename: "Landingpage-Report.pdf",
-    pagebreak: { mode: ["avoid-all","css","legacy"] },
-    html2canvas: {
-      scale: 2,
+    margin:       [10,10,10,10],
+    filename:     "Landingpage-Report.pdf",
+    pagebreak:    { mode: ["css","legacy","avoid-all"] },
+    html2canvas:  {
+      scale: 2.5,
       backgroundColor: "#ffffff",
       useCORS: true,
       allowTaint: true,
-      windowWidth: container.scrollWidth || 1200,
-      windowHeight: container.scrollHeight || 2000,
+      letterRendering: true,
+      logging: false,
+      windowWidth: Math.max(document.documentElement.clientWidth, 1200),
+      windowHeight: root.scrollHeight + 200
     },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" }
   };
 
-  h2p().set(opt).from(container).save().finally(()=>{
-    document.body.removeChild(container);
-  });
+  try {
+    await h2p().set(opt).from(root).save();
+  } finally {
+    // Revert details
+    detailsList.forEach((d, i) => (d.open = prevOpen[i]));
+    // Remove style
+    if (style && style.parentNode) style.parentNode.removeChild(style);
+  }
 }
 
 type Scores = { overall:number; bofu:number; convincing:number; technical:number };
@@ -119,7 +141,7 @@ export default function Page(){
       Math.round(data.scores.technical),
       vote
     ].join(',');
-    const csv = 'timestamp,url,overall,bofu,convincing,technical,vote\n' + row + '\n';
+    const csv = 'timestamp,url,overall,bofu,convincing,technical,vote\\n' + row + '\\n';
     const blob = new Blob([csv], {type:'text/csv'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -155,7 +177,7 @@ export default function Page(){
           <button
             className="btn-secondary"
             onClick={exportReportPDF}
-            disabled={!pdfReady}
+            disabled={!pdfReady || !data}
             title={pdfReady ? "Exportiere als PDF" : "Lädt…"}
           >
             {pdfReady ? "Export as PDF" : "PDF wird vorbereitet…"}
@@ -259,8 +281,7 @@ export default function Page(){
         strategy="afterInteractive"
         onLoad={()=>{
           if (typeof window !== "undefined") {
-            // kleiner Puffer, bis das Bundle gebootet hat
-            setTimeout(()=> setPdfReady(!!(window as any).html2pdf), 50);
+            setTimeout(()=> (window as any).html2pdf ? setPdfReady(true) : setPdfReady(false), 60);
           }
         }}
       />
