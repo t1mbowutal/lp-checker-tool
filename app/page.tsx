@@ -62,19 +62,7 @@ export default function Page(){
     a.remove();
   }
 
-  
-  function exportPDF(){
-    const node = document.querySelector('main');
-    const opt = {
-      margin:       10,
-      pagebreak:    { mode: ['avoid-all','css','legacy'] },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    // @ts-ignore
-    window.html2pdf().set(opt).from(node).save('lp-checker.pdf');
-  }
-return (
+  return (
     <main className="container">
       <section className="hero card">
         <h1>Bottom of Funnel (BoFu) Landing Page Checker</h1>
@@ -129,8 +117,13 @@ return (
         </details>
 
         {data && (<>
-          <div className="exec">
-            <div className="exec-title">Executive summary</div>
+          <div className="exec" style={{marginBottom:12}}>
+            <div className="exec-title" style={{fontSize:"1.75rem", fontWeight:800, display:"block"}}>Executive Summary</div>
+            <div className="muted" style={{color:"#ff6e00", fontWeight:800, fontSize:"1.125rem", margin:"4px 0 10px", display:"block"}}>
+              Overall score: <b>{Math.round(data.scores.overall)}</b>/100 — <Qual score={data.scores.overall}/>
+            </div>
+            {data.mgmt && <div className="exec-text" style={{marginTop:6}}>{data.mgmt}</div>}
+          </div>
             <small className="muted">
               Overall score: <b>{Math.round(data.scores.overall)}</b>/100 — <Qual score={data.scores.overall}/>
             </small>
