@@ -3,6 +3,54 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
+ * PDF-Export über Browser-Print (einzige Datei, keine Abhängigkeiten).
+ * Klont den Report-Knoten in ein Blanko-Fenster (A4), setzt minimale Styles und triggert print().
+ */
+function exportReportViaPrintA4() {
+  if (typeof window === "undefined") return;
+  const node = document.getElementById("report-root") as HTMLElement | null;
+  if(!node) return;
+  const w = window.open("", "report_print", "width=900,height=1200");
+  if(!w) return;
+
+  const css = `
+    @page { size: A4; margin: 10mm; }
+    @media print {
+      html, body { height: auto; }
+      .export-a4 { width: 210mm; min-height: 297mm; }
+      .card, .chart, .grid, .section { break-inside: avoid; page-break-inside: avoid; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji"; background: #fff; color: #000; }
+    .export-a4 h1, .export-a4 h2, .export-a4 h3, .export-a4 h4 { margin: 0 0 8px; }
+    .export-a4 .score-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .export-a4 .score-card { border:1px solid #ddd; border-radius:8px; padding:12px; }
+    .export-a4 .bar { height:10px; background:#eee; border-radius:8px; overflow:hidden; margin:8px 0; }
+    .export-a4 .bar span { display:block; height:100%; background:#ff6e00; }
+    .export-a4 ul { margin:6px 0 0 18px; }
+  `;
+
+  const html = `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Landingpage-Report</title>
+      <style>${css}</style>
+    </head>
+    <body>
+      <main class="export-a4">${node.outerHTML}</main>
+    </body>
+  </html>`;
+
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // Warten bis Fonts/Styles gerendert sind
+  setTimeout(()=>{ w.focus(); w.print(); w.close(); }, 300);
+}
+
+
+/**
  * PDF-Export (html2pdf-only): nutzt ausschließlich das bereits via <Script> geladene Bundle.
  * Keine zusätzlichen Imports/Dependencies -> verhindert Build-Fehler.
  */
