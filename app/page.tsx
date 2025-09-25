@@ -3,11 +3,10 @@ import { useState } from "react";
 import Script from "next/script";
 
 /**
- * HOTFIX for "white PDF" exports with html2pdf:
- * - Export directly from visible #report-root
- * - Open <details>, load images, neutralize sticky/transform
- * - Add print-only URL inside #report-root (requested)
- * - Revert DOM after export
+ * HOTFIX for "white PDF" exports with html2pdf
+ * + print-only URL
+ * + ensure score-card headings visible in PDF (white card bg, black headings)
+ * No other UI changes.
  */
 async function exportReportPDF() {
   if (typeof window === "undefined") return;
@@ -15,12 +14,12 @@ async function exportReportPDF() {
   const h2p = (window as any).html2pdf;
   if (!root || !h2p) return;
 
-  // 1) Temporarily open <details>
+  // Open <details> during export
   const detailsList = Array.from(root.querySelectorAll("details")) as HTMLDetailsElement[];
   const prevOpen = detailsList.map(d => d.open);
   detailsList.forEach(d => (d.open = true));
 
-  // 2) Force-load lazy images
+  // Ensure images are loaded
   const imgs = Array.from(root.querySelectorAll("img")) as HTMLImageElement[];
   const promises: Promise<void>[] = [];
   imgs.forEach(img => {
@@ -31,7 +30,7 @@ async function exportReportPDF() {
     promises.push((img.decode ? img.decode() : Promise.resolve()).catch(()=>{}));
   });
 
-  // 3) Inject print styles (also reveal .print-only blocks)
+  // Print styles (adjusted)
   const style = document.createElement("style");
   style.setAttribute("data-export-style","true");
   style.textContent = `
@@ -39,8 +38,12 @@ async function exportReportPDF() {
     #report-root { background: #fff !important; color: #000 !important; }
     #report-root * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     #report-root a { color: #000 !important; text-decoration: none; }
-    /* Neutralize transforms & sticky that can cause empty canvases */
+    /* Neutralize transforms & sticky (can cause empty canvases) */
     #report-root * { transform: none !important; position: static !important; }
+    /* Make score cards readable for print */
+    #report-root .score-card { background: #ffffff !important; color: #000 !important; border: 1px solid #bbb !important; border-radius: 8px; }
+    #report-root .score-card h4 { color: #000 !important; font-weight: 800 !important; margin-bottom: 6px !important; }
+    #report-root .score-card small { color:#000 !important; }
     /* Bars */
     #report-root .bar { height: 10px; background: #eee !important; border-radius: 8px; overflow: hidden; margin: 8px 0; }
     #report-root .bar span { display: block; height: 100%; background: #ff6e00 !important; }
@@ -57,7 +60,6 @@ async function exportReportPDF() {
   await new Promise(r => requestAnimationFrame(()=>r(null)));
   try { await Promise.all(promises); } catch {}
 
-  // 4) Export
   const opt = {
     margin:       [10,10,10,10],
     filename:     "Landingpage-Report.pdf",
@@ -184,7 +186,7 @@ export default function Page(){
       </section>
 
       <section className="card exec" id="report-root">
-        {/* PRINT-ONLY URL INSIDE REPORT (hidden in UI, visible in PDF) */}
+        {/* PRINT-ONLY URL INSIDE REPORT */}
         {url && (
           <div className="print-only" style={{display:'none', fontSize:12, marginBottom:10}}>
             <strong>Page:</strong> <a href={url} rel="noopener">{url}</a>
