@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import { NextResponse } from "next/server";
-import { scoreLanding } from "../../lib/scoring";
+import { scoreLanding } from "../../src/lib/scoring";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +39,6 @@ export async function GET(req: Request) {
     }
     const out = await analyze(target);
 
-    // Scoring einhängen (optional bei GET)
     const signals = {
       h1: out.h1,
       pageTitle: out.title,
@@ -64,7 +63,6 @@ export async function POST(req: Request) {
 
     const out = await analyze(target);
 
-    // Signale fürs Scoring
     const signals = {
       h1: out.h1,
       pageTitle: out.title,
