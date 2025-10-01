@@ -1,0 +1,1 @@
+export { scoreV2 } from './scoreV2';
