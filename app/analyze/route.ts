@@ -40,8 +40,8 @@ export async function GET(req: Request) {
     const out = await analyze(target);
 
     const signals = {
-      h1: out.h1,
-      pageTitle: out.title,
+      h1: out.h1 ?? undefined,
+      pageTitle: out.title ?? undefined,
       httpStatusOk: out.ok,
     };
     const score = scoreLanding(signals);
@@ -64,11 +64,11 @@ export async function POST(req: Request) {
     const out = await analyze(target);
 
     const signals = {
-      h1: out.h1,
-      pageTitle: out.title,
+      h1: out.h1 ?? undefined,
+      pageTitle: out.title ?? undefined,
       httpStatusOk: out.ok,
-      formFieldsCount: body.formFieldsCount ?? null,
-      funnelGoal: body.funnelGoal ?? null,
+      formFieldsCount: (body.formFieldsCount ?? undefined) as number | undefined,
+      funnelGoal: (body.funnelGoal ?? undefined) as string | undefined,
     };
 
     const score = scoreLanding(signals);
