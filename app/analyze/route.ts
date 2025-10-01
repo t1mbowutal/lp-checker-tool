@@ -29,7 +29,7 @@ async function analyze(target: string) {
   };
 }
 
-// GET: Ping oder Analyse per ?url=...
+// GET: unterstützt optional &goal=... &fields=...
 export async function GET(req: Request) {
   try {
     const u = new URL(req.url);
@@ -39,11 +39,19 @@ export async function GET(req: Request) {
     }
     const out = await analyze(target);
 
+    // Optional: Funnel und Felder aus Query
+    const goalParam = u.searchParams.get("goal") || undefined;
+    const fieldsParam = u.searchParams.get("fields");
+    const fieldsNum = fieldsParam ? Number(fieldsParam) : undefined;
+
     const signals = {
       h1: out.h1 ?? undefined,
       pageTitle: out.title ?? undefined,
       httpStatusOk: out.ok,
+      funnelGoal: goalParam as any,
+      formFieldsCount: Number.isFinite(fieldsNum as number) ? (fieldsNum as number) : undefined,
     };
+
     const score = scoreLanding(signals);
 
     return NextResponse.json({ ...out, scoring: score }, { status: out.ok ? 200 : (out.status || 500) });
