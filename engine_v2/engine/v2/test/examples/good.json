@@ -1,0 +1,47 @@
+{
+  "hero": {
+    "headline_quality": 0.7,
+    "value_prop": 1,
+    "cta_atf": 1
+  },
+  "cta": {
+    "primary_present": true,
+    "contrast": 0.65,
+    "tap_target_ok": true,
+    "secondary_present": false
+  },
+  "form": {
+    "fields": 8,
+    "progressive": true,
+    "inline_validation": true,
+    "privacy_hint": true
+  },
+  "trust": {
+    "iso": true,
+    "privacy_hint": true
+  },
+  "proof": {
+    "testimonials": 1,
+    "cases": 1,
+    "client_logos": 3
+  },
+  "mobile": {
+    "viewport_ok": true,
+    "tap_issues": 0,
+    "sticky_overlap": false
+  },
+  "speed": {
+    "percentile": 40
+  },
+  "copy": {
+    "benefit_bullets": true,
+    "numbers_in_copy": true,
+    "jargon_ratio": 0.2
+  },
+  "seo_misc": {
+    "h1": true,
+    "title_ok": true,
+    "schema_faq": false,
+    "missing_title_or_h1": false
+  }
+}
