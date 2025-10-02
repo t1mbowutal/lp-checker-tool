@@ -1,9 +1,91 @@
-import * as cheerio from 'cheerio';
-import { scoreLanding } from '../../../src/lib/scoring';
-export const runtime='nodejs';export const dynamic='force-dynamic';
-function clamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,Math.round(n)));}
-function textScore(t:string,n:string[],h=25,m=100){let s=0;const l=t.toLowerCase();for(const x of n){if(l.includes(x))s+=h;}return clamp(s,0,m);} 
-function computeScores($:any,url:string){const html=$.html()||'';const text=$.text()||'';const hasHttps=url.startsWith('https://');const title=$('title').first().text();const meta=$('meta[name="description"]').attr('content')||'';const h1=$('h1').first().text();const canonical=$('link[rel="canonical"]').attr('href')||'';const forms=$('form').length;const telLinks=$('a[href^="tel:"]').length;const mailtoLinks=$('a[href^="mailto:"]').length;const buttons=$('button, a.button, a.btn').map((_:any,e:any)=>$(e).text()).get().join(' ').toLowerCase();const priceLike=/\b(€|eur|usd|\$|price|pricing|angebot|kosten|prei|quote)\b/i.test(text);const ctaHit=/\b(contact|quote|angebot|anfragen|request|buy|order|purchase|kontakt|termin|demo|trial|testen|kostenlos|offer|get started|get a quote)\b/i.test(buttons+' '+text);let technical=0;if(hasHttps)technical+=20;if(title)technical+=20;if(meta)technical+=20;if(h1)technical+=20;if(canonical)technical+=20;technical=clamp(technical);let bofu=0;if(forms>0)bofu+=40;if(telLinks+mailtoLinks>0)bofu+=20;if(ctaHit)bofu+=25;if(priceLike)bofu+=15;bofu=clamp(bofu);const trustWords=['testimonial','case study','review','rating','bewertungen','bewertung','kundenstimme','referenz','g2','capterra','iso','din','cert','zert','success story','reference','referenz'];let convincing=0;convincing+=textScore(text,trustWords,12,60);const numbers=(text.match(/\b\d{1,3}(?:[\.,]\d{1,3})?\b/g)||[]).length;convincing+=clamp(Math.min(numbers*4,40));convincing=clamp(convincing);const overall=clamp(0.4*bofu+0.3*convincing+0.3*technical);const positives:string[]=[];const improvements:string[]=[];if(title)positives.push('Title present');else improvements.push('Add a clear, keyworded <title>');if(meta)positives.push('Meta description present');else improvements.push('Add a crisp meta description (≈150–160 chars)');if(h1)positives.push('H1 present');else improvements.push('Add a single, descriptive H1');if(canonical)positives.push('Canonical tag present');else improvements.push('Add a canonical link tag');return {scores:{overall,bofu,convincing,technical},positives,improvements,_title:title||null,_h1:h1||null};}
-async function run(target:string){const res=await fetch(target,{method:'GET',redirect:'follow',cache:'no-store',referrer:'https://www.google.com/',referrerPolicy:'strict-origin-when-cross-origin',next:{revalidate:0},headers:{'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36','accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8','accept-language':'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7','upgrade-insecure-requests':'1','pragma':'no-cache','cache-control':'no-cache','accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'},cache:'no-store'});const html=await res.text();const $=cheerio.load(html);const out=computeScores($,target);return {...out,ok:res.ok,status:res.status,url:target};}
-export async function GET(req:Request){const u=new URL(req.url);const target=(u.searchParams.get('url')||'').toString().trim();if(!target){return Response.json({ok:true,ping:'up'},{status:200});}const out=await run(target);const goal=u.searchParams.get('goal')||undefined;const fieldsParam=u.searchParams.get('fields');const fieldsNum=fieldsParam?Number(fieldsParam):undefined;const signals={h1:out._h1??undefined,pageTitle:out._title??undefined,httpStatusOk:out.ok,funnelGoal:goal as any,formFieldsCount:Number.isFinite(fieldsNum as number)?(fieldsNum as number):undefined};const scoring=scoreLanding(signals);return Response.json({...out,scoring,version:'ifm-v3',overall:(out?.scores?.overall??0),pillarBreakdown:{Form:(out?.scores?.bofu??0),UX:(out?.scores?.technical??0),SEAIntent:(out?.scores?.convincing??0)},signals:{},notes:(out?.improvements??[])},{status:out.ok?200:(out.status||500)});}
-export async function POST(req:Request){try{const body=await req.json().catch(()=>({}));const target=(body?.url||'').toString().trim();if(!target){return Response.json({ok:false,error:'Missing "url" in body'},{status:400});}const out=await run(target);const signals={h1:out._h1??undefined,pageTitle:out._title??undefined,httpStatusOk:out.ok,formFieldsCount:(body.formFieldsCount??undefined) as number|undefined,funnelGoal:(body.funnelGoal??undefined) as string|undefined};const scoring=scoreLanding(signals);return Response.json({...out,scoring,version:'ifm-v3',overall:(out?.scores?.overall??0),pillarBreakdown:{Form:(out?.scores?.bofu??0),UX:(out?.scores?.technical??0),SEAIntent:(out?.scores?.convincing??0)},signals:{},notes:(out?.improvements??[])},{status:200});}catch(e:any){return Response.json({ok:false,error:e?.message||String(e)},{status:500});}}
+import * as cheerio from "cheerio";
+import { NextResponse } from "next/server";
+import { scoreLanding } from "../../src/lib/scoring";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+async function analyze(target: string) {
+  const res = await fetch(target, {
+    headers: {
+      "user-agent": "LP-Checker/1.0 (+lp-checker-tool.vercel.app)",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    },
+    cache: "no-store",
+  });
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  return {
+    ok: res.ok,
+    status: res.status,
+    url: target,
+    title: $("title").first().text() || null,
+    metaDescription: $('meta[name="description"]').attr("content") || null,
+    h1: $("h1").first().text() || null,
+    canonical: $('link[rel="canonical"]').attr("href") || null,
+    length: html.length,
+  };
+}
+
+// GET: unterstützt optional &goal=... &fields=...
+export async function GET(req: Request) {
+  try {
+    const u = new URL(req.url);
+    const target = (u.searchParams.get("url") || "").toString().trim();
+    if (!target) {
+      return NextResponse.json({ ok: true, ping: "up" }, { status: 200 });
+    }
+    const out = await analyze(target);
+
+    // Optional: Funnel und Felder aus Query
+    const goalParam = u.searchParams.get("goal") || undefined;
+    const fieldsParam = u.searchParams.get("fields");
+    const fieldsNum = fieldsParam ? Number(fieldsParam) : undefined;
+
+    const signals = {
+      h1: out.h1 ?? undefined,
+      pageTitle: out.title ?? undefined,
+      httpStatusOk: out.ok,
+      funnelGoal: goalParam as any,
+      formFieldsCount: Number.isFinite(fieldsNum as number) ? (fieldsNum as number) : undefined,
+    };
+
+    const score = scoreLanding(signals);
+
+    return NextResponse.json({ ...out, scoring: score }, { status: out.ok ? 200 : (out.status || 500) });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
+  }
+}
+
+// POST: nimmt body.json mit { url, formFieldsCount?, funnelGoal? }
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const target = (body?.url || "").toString().trim();
+    if (!target) {
+      return NextResponse.json({ ok: false, error: "Missing url" }, { status: 400 });
+    }
+
+    const out = await analyze(target);
+
+    const signals = {
+      h1: out.h1 ?? undefined,
+      pageTitle: out.title ?? undefined,
+      httpStatusOk: out.ok,
+      formFieldsCount: (body.formFieldsCount ?? undefined) as number | undefined,
+      funnelGoal: (body.funnelGoal ?? undefined) as string | undefined,
+    };
+
+    const score = scoreLanding(signals);
+
+    return NextResponse.json(
+      { ...out, scoring: score },
+      { status: out.ok ? 200 : (out.status || 500) }
+    );
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
+  }
+}
