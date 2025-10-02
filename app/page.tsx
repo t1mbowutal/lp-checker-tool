@@ -40,7 +40,7 @@ function mapIfmV3ToLegacy(v3: IfmV3): Result {
     ? improvements.slice(0,2).join(' ')
     : undefined;
 
-  return {
+  const out = {
     scores: {
       overall: Math.round(Number(v3.overall) || 0),
       bofu: Math.round(Number(bofu) || 0),
@@ -50,6 +50,8 @@ function mapIfmV3ToLegacy(v3: IfmV3): Result {
     improvements,
     mgmt,
   };
+  (out as any)._backendVersion = 'ifm-v3';
+  return out;
 }
 
 function avg(arr:number[]){
@@ -159,7 +161,8 @@ export default function Page(){
       const res = await fetch(`/api/analyze?version=ifm-v3&url=${encodeURIComponent(url)}`);
       if(!res.ok) throw new Error(`API error: ${res.status}`);
       const raw = await res.json();
-      const j = (raw && raw.version === 'ifm-v3') ? mapIfmV3ToLegacy(raw) : raw;
+      let j:any = (raw && raw.version === 'ifm-v3') ? mapIfmV3ToLegacy(raw) : raw;
+      if (!j?._backendVersion) j = { ...(j||{}), _backendVersion: (raw?.version || 'legacy') };
       setData(j);
     }catch(e:any){ alert(e?.message || "Failed to analyze"); }
     finally{ setLoading(false); }
@@ -297,6 +300,12 @@ export default function Page(){
           }
         }}
       />
+    
+      {/* Non-invasive backend version indicator */}
+      <div style={{fontSize:'10px', opacity:0.6, marginTop:'8px'}}>
+        Backend version: {(state?.data as any)?._backendVersion || 'unknown'}
+      </div>
+    
     </main>
   );
 }
