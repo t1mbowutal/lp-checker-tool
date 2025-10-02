@@ -161,7 +161,27 @@ export default function Page(){
       const res = await fetch(`/api/analyze?version=ifm-v3&url=${encodeURIComponent(url)}`);
       if(!res.ok) throw new Error(`API error: ${res.status}`);
       const raw = await res.json();
-      let j:any = (raw && raw.version === 'ifm-v3') ? mapIfmV3ToLegacy(raw) : raw;
+      let j:any;
+      if (raw && raw.version === 'ifm-v3') {
+        j = mapIfmV3ToLegacy(raw);
+      } else if (raw?.scoring?.version === 'ifm-v3') {
+        // Construct synthetic v3 from legacy root + scoring meta
+        const v3 = {
+          version: 'ifm-v3',
+          overall: raw?.scores?.overall ?? 0,
+          pillarBreakdown: {
+            Form: raw?.scores?.bofu ?? 0,
+            UX: raw?.scores?.technical ?? 0,
+            SEAIntent: raw?.scores?.convincing ?? 0,
+          },
+          signals: {},
+          notes: Array.isArray(raw?.improvements) ? raw.improvements : []
+        } as any;
+        j = mapIfmV3ToLegacy(v3);
+        (j as any)._backendVersion = 'ifm-v3 (scoring)';
+      } else {
+        j = raw;
+      }
       if (!j?._backendVersion) j = { ...(j||{}), _backendVersion: (raw?.version || 'legacy') };
       setData(j);
     }catch(e:any){ alert(e?.message || "Failed to analyze"); }
