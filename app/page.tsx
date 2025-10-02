@@ -159,8 +159,9 @@ export default function Page(){
     setLoading(true); setData(null);
     try{
       const res = await fetch(`/api/analyze?version=ifm-v3&url=${encodeURIComponent(url)}`);
-      if(!res.ok) throw new Error(`API error: ${res.status}`);
-      const raw = await res.json();
+      // akzeptiere 4xx (z. B. 404) und parse trotzdem
+      const raw = await res.json().catch(() => ({} as any));
+      if (!res.ok && res.status >= 500) throw new Error(`API error: ${res.status}`);
       let j:any;
       if (raw && raw.version === 'ifm-v3') {
         j = mapIfmV3ToLegacy(raw);
@@ -183,6 +184,9 @@ export default function Page(){
         j = raw;
       }
       if (!j?._backendVersion) j = { ...(j||{}), _backendVersion: (raw?.version || 'legacy') };
+      // preserve positives/improvements from server if available
+      if (Array.isArray(raw?.positives)) j.positives = raw.positives;
+      if (Array.isArray(raw?.improvements) && (!Array.isArray(j?.improvements) || j.improvements.length===0)) j.improvements = raw.improvements;
       setData(j);
     }catch(e:any){ alert(e?.message || "Failed to analyze"); }
     finally{ setLoading(false); }
