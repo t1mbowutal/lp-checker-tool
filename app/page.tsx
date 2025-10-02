@@ -303,7 +303,7 @@ export default function Page(){
     
       {/* Non-invasive backend version indicator */}
       <div style={{fontSize:'10px', opacity:0.6, marginTop:'8px'}}>
-        Backend version: {(state?.data as any)?._backendVersion || 'unknown'}
+        Backend version: {(data as any)?._backendVersion || 'unknown'}
       </div>
     
     </main>
