@@ -11,6 +11,52 @@ import Script from "next/script";
  * - Tooltips visible in UI, hidden in PDF
  * - Checklist title styled like "Executive summary" (no "1.")
  */
+
+// --- ifm-v3 adapter (keine UI-Änderung) ---
+type IfmV3 = {
+  version: 'ifm-v3';
+  overall: number;
+  pillarBreakdown?: Record<string, number>;
+  signals?: Record<string, any>;
+  notes?: string[];
+};
+
+function mapIfmV3ToLegacy(v3: IfmV3): Result {
+  const pb = v3.pillarBreakdown || {};
+  // konservative Zuordnung
+  const valueProp = Number(pb['ValueProp'] ?? 0);
+  const trust = Number(pb['Trust'] ?? 0);
+  const ux = Number(pb['UX'] ?? 0);
+  const form = Number(pb['Form'] ?? 0);
+  const speed = Number(pb['Speed'] ?? 0);
+  const sea = Number(pb['SEAIntent'] ?? 0);
+
+  const convincing = avg([valueProp, trust, sea].filter((n) => isFinite(n) && n>0));
+  const technical = avg([ux, speed].filter((n) => isFinite(n) && n>0));
+  const bofu = form || Math.round((v3.signals?.formFieldsCount ?? 0) > 0 ? 67 : 34);
+
+  const improvements = Array.isArray(v3.notes) ? v3.notes : undefined;
+  const mgmt = improvements && improvements.length
+    ? improvements.slice(0,2).join(' ')
+    : undefined;
+
+  return {
+    scores: {
+      overall: Math.round(Number(v3.overall) || 0),
+      bofu: Math.round(Number(bofu) || 0),
+      convincing: Math.round(Number(convincing) || 0),
+      technical: Math.round(Number(technical) || 0),
+    },
+    improvements,
+    mgmt,
+  };
+}
+
+function avg(arr:number[]){
+  if(!arr || arr.length===0) return 0;
+  return arr.reduce((a,b)=>a+b,0)/arr.length;
+}
+// --- end ifm-v3 adapter ---
 async function exportReportPDF() {
   if (typeof window === "undefined") return;
   const root = document.getElementById("report-root") as HTMLElement | null;
@@ -110,9 +156,10 @@ export default function Page(){
     if(!url) return;
     setLoading(true); setData(null);
     try{
-      const res = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
+      const res = await fetch(`/api/analyze?version=ifm-v3&url=${encodeURIComponent(url)}`);
       if(!res.ok) throw new Error(`API error: ${res.status}`);
-      const j = await res.json();
+      const raw = await res.json();
+      const j = (raw && raw.version === 'ifm-v3') ? mapIfmV3ToLegacy(raw) : raw;
       setData(j);
     }catch(e:any){ alert(e?.message || "Failed to analyze"); }
     finally{ setLoading(false); }
