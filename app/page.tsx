@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Script from "next/script";
 
 /**
@@ -151,8 +151,20 @@ function shorten(u:string, max=72){
 export default function Page(){
   const [url,setUrl] = useState("");
   const [loading,setLoading] = useState(false);
+  const [logicVersion,setLogicVersion] = useState("unknown");
   const [data,setData] = useState<Result|null>(null);
   const [pdfReady, setPdfReady] = useState(false);
+
+  // Fetch current scoring logic version (auto-updates on each deploy)
+  useEffect(() => {
+    fetch('/api/analyze', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(j => {
+        const v = (j?.scoringLogicVersion || j?._scoringLogicVersion || 'unknown');
+        setLogicVersion(v);
+      })
+      .catch(() => {});
+  }, []);
 
   async function analyze(){
     if(!url) return;
@@ -188,6 +200,7 @@ export default function Page(){
       if (Array.isArray(raw?.positives)) j.positives = raw.positives;
       if (Array.isArray(raw?.improvements) && (!Array.isArray(j?.improvements) || j.improvements.length===0)) j.improvements = raw.improvements;
       (j as any)._scoringLogicVersion = raw?._scoringLogicVersion || raw?.scoringLogicVersion || (raw?.scoring?._scoringLogicVersion) || undefined;
+      if ((j as any)._scoringLogicVersion) setLogicVersion((j as any)._scoringLogicVersion);
       setData(j);
     }catch(e:any){ alert(e?.message || "Failed to analyze"); }
     finally{ setLoading(false); }
@@ -328,7 +341,7 @@ export default function Page(){
     
       {/* Scoring logic version indicator */}
       <div style={{fontSize:'10px', opacity:0.6, marginTop:'8px'}}>
-        Scoring logic version: {(data as any)?._scoringLogicVersion || 'unknown'}
+        Scoring logic version: {logicVersion || (data as any)?._scoringLogicVersion || 'unknown'}
       </div>
     
     </main>
