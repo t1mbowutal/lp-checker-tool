@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { scoreLanding } from '../../../src/lib/scoring';
-export const SCORING_LOGIC_VERSION = ((process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0,7)) || 'local';
+const SCORING_LOGIC_VERSION = ((process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0,7)) || 'local';
 export const runtime='nodejs';export const dynamic='force-dynamic';
 function clamp(n:number,min=0,max=100){return Math.max(min,Math.min(max,Math.round(n)));}
 function textScore(t:string,n:string[],h=25,m=100){let s=0;const l=t.toLowerCase();for(const x of n){if(l.includes(x))s+=h;}return clamp(s,0,m);} 
