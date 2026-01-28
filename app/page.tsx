@@ -187,6 +187,7 @@ export default function Page(){
       // preserve positives/improvements from server if available
       if (Array.isArray(raw?.positives)) j.positives = raw.positives;
       if (Array.isArray(raw?.improvements) && (!Array.isArray(j?.improvements) || j.improvements.length===0)) j.improvements = raw.improvements;
+      (j as any)._scoringLogicVersion = raw?._scoringLogicVersion || raw?.scoringLogicVersion || (raw?.scoring?._scoringLogicVersion) || undefined;
       setData(j);
     }catch(e:any){ alert(e?.message || "Failed to analyze"); }
     finally{ setLoading(false); }
@@ -312,7 +313,7 @@ export default function Page(){
       </section>
 
       <footer className="footer">
-        © Tim Clausen 2025 — This tool targets SEA/BoFu landing pages, not general websites.
+        © Tim Clausen 2026 — This tool targets SEA/BoFu landing pages, not general websites.
       </footer>
 
       <Script
@@ -325,9 +326,9 @@ export default function Page(){
         }}
       />
     
-      {/* Non-invasive backend version indicator */}
+      {/* Scoring logic version indicator */}
       <div style={{fontSize:'10px', opacity:0.6, marginTop:'8px'}}>
-        Backend version: {(data as any)?._backendVersion || 'unknown'}
+        Scoring logic version: {(data as any)?._scoringLogicVersion || 'unknown'}
       </div>
     
     </main>
