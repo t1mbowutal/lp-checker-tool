@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,7 +9,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="app">{children}</body>
+      <body className="app">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
